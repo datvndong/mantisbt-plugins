@@ -11,7 +11,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     private const START_DATE_FIELD_CONFIG = 'task_start_date_field_id';
     private const COMPLETION_DATE_FIELD_CONFIG = 'task_completion_date_field_id';
 
-    private function format_date(string $format, int $timestamp): string
+    private function format_date(string $format, string $timestamp): string
     {
         return empty($timestamp) ? '' : date($format, $timestamp);
     }
