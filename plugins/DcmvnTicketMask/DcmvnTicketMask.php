@@ -342,8 +342,34 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
         $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
 
-        // Display "Planned Resource No. 01" -> "Planned Resource No. 12" fields
+        // Calculate total planned hours
         $total_time = 0;
+        for ($i = 1; $i <= 12; $i++) {
+            $resource_no = sprintf('%02d', $i);
+            $total_time += $bug_custom_data["resource_{$resource_no}_time"];
+        }
+
+        echo '<tr>';
+        // Add "Temp Target Version" field
+        echo '<th class="temp-target-version category"></th>';
+        echo '<td class="temp-target-version"></td>';
+        // Display "Total No. of MD's" field
+        echo '<th class="bug-total-md category">';
+        echo plugin_lang_get('total_md');
+        echo '</th>';
+        echo '<td class="bug-total-md">';
+        echo sprintf("%.2f", $total_time / (7.5 * 60));
+        echo '</td>';
+        // Display "Total No. of Program Days" field
+        echo '<th class="bug-total-program-days category">';
+        echo plugin_lang_get('total_program_days');
+        echo '</th>';
+        echo '<td class="bug-total-program-days">';
+        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
+        echo '</td>';
+        echo '</tr>';
+
+        // Display "Planned Resource No. 01" -> "Planned Resource No. 12" fields
         for ($i = 0; $i < 4; $i++) {
             echo '<tr>';
             for ($j = 0; $j < 3; $j++) {
@@ -355,7 +381,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
                 echo "<td class=\"bug-planned-resource-$resource_no\">";
                 print_user_with_subject($bug_custom_data["resource_{$resource_no}_id"], $p_bug_id);
-                echo '</td>';
+                echo '&nbsp;</td>';
             }
             echo '</tr>';
 
@@ -363,7 +389,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
                 $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
-                $total_time += $resource_time;
 
                 echo "<td class=\"bug-planned-resource-$resource_no\">";
                 echo string_display_line(db_minutes_to_hhmm($resource_time));
@@ -393,23 +418,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</th>';
         echo '<td class="bug-actual-vs-planned-hours"></td>';
         echo '</tr>';
-
-        echo '<tr>';
-        // Display "Total No. of MD's" field
-        echo '<th class="bug-total-md category">';
-        echo plugin_lang_get('total_md');
-        echo '</th>';
-        echo '<td class="bug-total-md">';
-        echo sprintf("%.2f", $total_time / (7.5 * 60));
-        echo '</td>';
-        // Display "Total No. of Program Days" field
-        echo '<th class="bug-total-program-days category">';
-        echo plugin_lang_get('total_program_days');
-        echo '</th>';
-        echo '<td class="bug-total-program-days">';
-        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
-        echo '</td>';
-        echo '</tr>';
     }
 
     /**
@@ -424,8 +432,34 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
         $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
 
-        // Add "Planned Resource No. 01" -> "Planned Resource No. 12" fields
+        // Calculate total planned hours
         $total_time = 0;
+        for ($i = 1; $i <= 12; $i++) {
+            $resource_no = sprintf('%02d', $i);
+            $total_time += $bug_custom_data["resource_{$resource_no}_time"];
+        }
+
+        echo '<tr>';
+        // Add "Temp Target Version" field
+        echo '<th class="category"><label for="temp_target_version"></label></th>';
+        echo '<td id="temp_target_version"></td>';
+        // Add "Total No. of MD's" field
+        echo '<th class="category"><label for="total_md">';
+        echo plugin_lang_get('total_md');
+        echo '</label></th>';
+        echo '<td id="total_md">';
+        echo sprintf("%.2f", $total_time / (7.5 * 60));
+        echo '</td>';
+        // Add "Total No. of Program Days" field
+        echo '<th class="category"><label for="total_program_days">';
+        echo plugin_lang_get('total_program_days');
+        echo '</label></th>';
+        echo '<td id="total_program_days">';
+        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
+        echo '</td>';
+        echo '</tr>';
+
+        // Add "Planned Resource No. 01" -> "Planned Resource No. 12" fields
         for ($i = 0; $i < 4; $i++) {
             echo '<tr>';
             for ($j = 0; $j < 3; $j++) {
@@ -454,7 +488,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
                 $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
-                $total_time += $resource_time;
 
                 echo '<td>';
                 echo "<input tabindex=\"0\" type=\"text\" id=\"resource_{$resource_no}_time\" name=\"resource_{$resource_no}_time\" " .
@@ -488,23 +521,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             echo string_display_line(user_get_name($bug_custom_data['approval_id']));
         }
         echo '</td>';
-        echo '</tr>';
-
-        echo '<tr>';
-        // Add "Total No. of MD's" field
-        echo '<th class="category"><label for="total_md">';
-        echo plugin_lang_get('total_md');
-        echo '</label></th>';
-        echo '<td id="total_md">';
-        echo sprintf("%.2f", $total_time / (7.5 * 60));
-        echo '</td>';
-        // Add "Total No. of Program Days" field
-        echo '<th class="category"><label for="total_program_days">';
-        echo plugin_lang_get('total_program_days');
-        echo '</label></th>';
-        echo '<td id="total_program_days">';
-        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
-        echo '</td>';
+        echo '<td colspan="2">&nbsp;</td>';
         echo '</tr>';
     }
 
@@ -588,22 +605,31 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
-        // Move "Total No. of MD's" & "Total No. of Program Days" fields to the correct position
+        // Move "Target Version" field to the "Temp Target Version" position
         $pattern =
-            '/<th[^>]*class="[^"]*bug-total-md[^"]*category[^"]*"[^>]*>.*?<\/th>\s*' .
-            '<td[^>]*class="[^"]*bug-total-md[^"]*"[^>]*>.*?<\/td>' .
-            '<th[^>]*class="[^"]*bug-total-program-days[^"]*category[^"]*"[^>]*>.*?<\/th>\s*' .
-            '<td[^>]*class="[^"]*bug-total-program-days[^"]*"[^>]*>.*?<\/td>' .
+            '/<th[^>]*class="[^"]*bug-target-version[^"]*category[^"]*"[^>]*>.*?<\/th>\s*' .
+            '<td[^>]*class="[^"]*bug-target-version[^"]*"[^>]*>.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
         if (count($matches) > 0) {
             $match = $matches[0];
-            // Remove "Total No. of MD's" & "Total No. of Program Days" fields from theirs current position
+            // Remove "Target Version" field from its current position
             $content = preg_replace($pattern, '', $content);
-            // Move "Total No. of MD's" & "Total No. of Program Days" fields to after "Target Version" field
+            // Move "Target Version" field to before "Total No. of MD's" field
             $content = preg_replace(
-                '/(<td[^>]*class="[^"]*bug-target-version[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
-                "$1$match$2",
+                '/<th[^>]*class="[^"]*temp-target-version[^"]*category[^"]*"[^>]*>.*?<\/th>\s*' .
+                '<td[^>]*class="[^"]*temp-target-version[^"]*"[^>]*>.*?<\/td>' .
+                '/si',
+                $match,
+                $content
+            );
+        } else {
+            // Hide "Temp Target Version" field
+            $content = preg_replace(
+                '/<th[^>]*class="[^"]*temp-target-version[^"]*category[^"]*"[^>]*>.*?<\/th>\s*' .
+                '<td[^>]*class="[^"]*temp-target-version[^"]*"[^>]*>.*?<\/td>' .
+                '/si',
+                '<th colspan="2">&nbsp;</th>',
                 $content
             );
         }
@@ -809,26 +835,39 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
-        // Move "Total No. of MD's" & "Total No. of Program Days" fields to the correct position
+        // Move "Target Version" field to the "Temp Target Version" position
         $pattern =
             '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
-            '<label[^>]*for="total_md"[^>]*>.*?<\/label>\s*' .
+            '<label[^>]*for="target_version"[^>]*>.*?<\/label>\s*' .
             '<\/th>\s*' .
-            '<td[^>]*>.*?<\/td>' .
-            '<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
-            '<label[^>]*for="total_program_days"[^>]*>.*?<\/label>\s*' .
-            '<\/th>\s*' .
-            '<td[^>]*>.*?<\/td>' .
+            '<td[^>]*>\s*' .
+            '<select[^>]*id="target_version"[^>]*name="target_version"[^>]*>.*?<\/select>' .
+            '.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
         if (count($matches) > 0) {
             $match = $matches[0];
-            // Remove "Total No. of MD's" & "Total No. of Program Days" fields from theirs current position
+            // Remove "Target Version" field from its current position
             $content = preg_replace($pattern, '', $content);
-            // Move "Total No. of MD's" & "Total No. of Program Days" fields to after "Target Version" field
+            // Move "Target Version" field to before "Total No. of MD's" field
             $content = preg_replace(
-                '/(<td[^>]*>\s*<select[^>]*id="target_version"[^>]*name="target_version"[^>]*>.*?<\/select>\s*<\/td>).*?(<\/tr>)/si',
-                "$1$match$2",
+                '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+                '<label[^>]*for="temp_target_version"[^>]*>.*?<\/label>\s*' .
+                '<\/th>\s*' .
+                '<td[^>]*id="temp_target_version"[^>]*>\s*<\/td>' .
+                '/si',
+                $match,
+                $content
+            );
+        } else {
+            // Hide "Temp Target Version" field
+            $content = preg_replace(
+                '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+                '<label[^>]*for="temp_target_version"[^>]*>.*?<\/label>\s*' .
+                '<\/th>\s*' .
+                '<td[^>]*id="temp_target_version"[^>]*>\s*<\/td>' .
+                '/si',
+                '<th colspan="2">&nbsp;</th>',
                 $content
             );
         }
