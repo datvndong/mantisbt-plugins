@@ -95,7 +95,7 @@ while ($t_row = db_fetch_array($t_result)) {
 
               <div class="widget-toolbox padding-8 clearfix">
                 <input type="submit" class="btn btn-primary btn-white btn-round"
-                       value="<?php echo plugin_lang_get('action_update') ?>" />
+                       value="<?php echo plugin_lang_get('config_action_update') ?>" />
               </div>
             </div>
           </div>

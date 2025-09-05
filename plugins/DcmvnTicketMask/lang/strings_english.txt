@@ -6,11 +6,15 @@ $s_plugin_DcmvnTicketMask_ = '';
 $s_plugin_DcmvnTicketMask_plugin_title = 'DCMVN Ticket Mask';
 
 $s_plugin_DcmvnTicketMask_config_title = 'DCMVN Ticket Mask Configuration';
-
-$s_plugin_DcmvnTicketMask_action_update = 'Update';
-
 $s_plugin_DcmvnTicketMask_config_task_start_date_field = '"Task Start Date" Field';
 $s_plugin_DcmvnTicketMask_config_task_completion_date_field = '"Task Compl. Req." Field';
-
 $s_plugin_DcmvnTicketMask_config_select_date_field = 'Select a date field...';
+$s_plugin_DcmvnTicketMask_config_action_update = 'Update';
 $s_plugin_DcmvnTicketMask_config_no_date_fields = 'No date custom fields found. Please create a date custom field first.';
+
+$s_plugin_DcmvnTicketMask_total_md = 'Total No. of MD\'s';
+$s_plugin_DcmvnTicketMask_total_program_days = 'Total No. of Program Days';
+$s_plugin_DcmvnTicketMask_planned_resource = 'Planned Resource No. ';
+$s_plugin_DcmvnTicketMask_total_planned_hours = 'Total Planned Hours';
+$s_plugin_DcmvnTicketMask_estimation_approval = 'Estimation Approval';
+$s_plugin_DcmvnTicketMask_actual_vs_planned_hours = 'Actual vs Planned Hours';
