@@ -12,26 +12,161 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     private const START_DATE_FIELD_CONFIG = 'task_start_date_field_id';
     private const COMPLETION_DATE_FIELD_CONFIG = 'task_completion_date_field_id';
 
-    private function format_date(string $p_format, string $p_timestamp): string
+    private function format_date(string $p_format, ?string $p_timestamp = ''): string
     {
-        return empty($p_timestamp) ? '' : date($p_format, $p_timestamp);
+        return !is_string($p_timestamp) || empty($p_timestamp) ? '' : date($p_format, $p_timestamp);
     }
 
-    private function convert_hhmm_to_minutes(string $p_hhmm): int
+    /**
+     * @throws ClientException
+     */
+    private function save_custom_data(?int $p_bug_id = 0)
+    {
+        $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
+
+        // Check if record exists
+        $existing_data = $this->get_custom_data($p_bug_id);
+
+        // Build db params
+        $db_params = array();
+        for ($i = 0; $i < 12; $i++) {
+            $resource_no = sprintf('%02d', ($i + 1));
+            array_push(
+                $db_params,
+                gpc_get_int("resource_{$resource_no}_id", 0),
+                $this->convert_hhmm_to_minutes(gpc_get_string("resource_{$resource_no}_time", '')),
+            );
+        }
+        $approval_id = gpc_get_int('approval_id', 0);
+        $current_time = db_now();
+        $current_user_id = auth_get_current_user_id();
+        array_push($db_params, $approval_id, $current_time, $current_user_id);
+
+        if ($existing_data['bug_id'] === null) {
+            if ($p_bug_id < 1) {
+                return;
+            }
+
+            array_push($db_params, $current_time, $current_user_id, $p_bug_id);
+
+            // Insert new record
+            $query = "INSERT INTO $table_name (
+                        resource_01_id,
+                        resource_01_time,
+                        resource_02_id,
+                        resource_02_time,
+                        resource_03_id,
+                        resource_03_time,
+                        resource_04_id,
+                        resource_04_time,
+                        resource_05_id,
+                        resource_05_time,
+                        resource_06_id,
+                        resource_06_time,
+                        resource_07_id,
+                        resource_07_time,
+                        resource_08_id,
+                        resource_08_time,
+                        resource_09_id,
+                        resource_09_time,
+                        resource_10_id,
+                        resource_10_time,
+                        resource_11_id,
+                        resource_11_time,
+                        resource_12_id,
+                        resource_12_time,
+                        approval_id,
+                        created_at,
+                        created_by,
+                        updated_at,
+                        updated_by,
+                        bug_id
+                     )
+                     VALUES (
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . ",
+                        " . db_param() . "
+                     )";
+        } else {
+            $db_params[] = $p_bug_id;
+
+            // Update existing record
+            $query = "UPDATE {$table_name}
+                      SET resource_01_id = " . db_param() . ",
+                          resource_01_time = " . db_param() . ",
+                          resource_02_id = " . db_param() . ",
+                          resource_02_time = " . db_param() . ",
+                          resource_03_id = " . db_param() . ",
+                          resource_03_time = " . db_param() . ",
+                          resource_04_id = " . db_param() . ",
+                          resource_04_time = " . db_param() . ",
+                          resource_05_id = " . db_param() . ",
+                          resource_05_time = " . db_param() . ",
+                          resource_06_id = " . db_param() . ",
+                          resource_06_time = " . db_param() . ",
+                          resource_07_id = " . db_param() . ",
+                          resource_07_time = " . db_param() . ",
+                          resource_08_id = " . db_param() . ",
+                          resource_08_time = " . db_param() . ",
+                          resource_09_id = " . db_param() . ",
+                          resource_09_time = " . db_param() . ",
+                          resource_10_id = " . db_param() . ",
+                          resource_10_time = " . db_param() . ",
+                          resource_11_id = " . db_param() . ",
+                          resource_11_time = " . db_param() . ",
+                          resource_12_id = " . db_param() . ",
+                          resource_12_time = " . db_param() . ",
+                          approval_id = " . db_param() . ",
+                          updated_at = " . db_param() . ",
+                          updated_by = " . db_param() . "
+                      WHERE bug_id = " . db_param();
+        }
+        db_query($query, $db_params);
+    }
+
+    private function convert_hhmm_to_minutes(?string $p_hhmm = ''): int
     {
         sscanf($p_hhmm, '%d:%d', $hours, $minutes);
         return $hours * 60 + $minutes;
     }
 
-    private function count_program_days(string $p_start_date, string $p_end_date): int
+    private function count_program_days(?int $p_start_date = 0, ?int $p_end_date = 0): int
     {
-        if (empty($p_start_date) || empty($p_end_date)) {
+        if ($p_start_date <= 1 || $p_end_date <= 1) {
             return 0;
         }
 
         try {
-            $start = new DateTime($p_start_date);
-            $end = new DateTime($p_end_date);
+            $ymd_format = config_get('short_date_format');
+            $start = new DateTime(date($ymd_format, $p_start_date));
+            $end = new DateTime(date($ymd_format, $p_end_date));
 
             $n_days = 1 + round(($end->getTimestamp() - $start->getTimestamp()) / (24 * 3600));
 
@@ -46,7 +181,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
     }
 
-    private function get_custom_data(int $p_bug_id): array
+    private function string_to_int(?string $input = ''): int
+    {
+        return is_string($input) && is_numeric($input) ? intval($input) : -1;
+    }
+
+    private function get_custom_data(?int $p_bug_id = 0): array
     {
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
         $query = "SELECT * FROM $table_name WHERE bug_id = " . db_param();
@@ -57,7 +197,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
 
         return array(
-            'bug_id' => $p_bug_id,
+            'bug_id' => null,
             'resource_01_id' => 0,
             'resource_01_time' => 0,
             'resource_02_id' => 0,
@@ -199,7 +339,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
-        $ymd_format = config_get('short_date_format');
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
         $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
 
@@ -268,7 +407,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('total_program_days');
         echo '</th>';
         echo '<td class="bug-total-program-days">';
-        echo $this->count_program_days(date($ymd_format, $bug_start_date), date($ymd_format, $bug_due_date));
+        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
         echo '</td>';
         echo '</tr>';
     }
@@ -282,7 +421,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_project_id = bug_get_field($p_bug_id, 'project_id');
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
-        $ymd_format = config_get('short_date_format');
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
         $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
 
@@ -365,7 +503,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('total_program_days');
         echo '</label></th>';
         echo '<td id="total_program_days">';
-        echo $this->count_program_days(date($ymd_format, $bug_start_date), date($ymd_format, $bug_due_date));
+        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
         echo '</td>';
         echo '</tr>';
     }
@@ -375,54 +513,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
     {
-        // Build db params
-        $db_params = array();
-        for ($i = 0; $i < 12; $i++) {
-            $resource_no = sprintf('%02d', ($i + 1));
-            array_push(
-                $db_params,
-                gpc_get_int("resource_{$resource_no}_id", 0),
-                $this->convert_hhmm_to_minutes(gpc_get_string("resource_{$resource_no}_time", '')),
-            );
-        }
-        $approval_id = gpc_get_int('approval_id', 0);
-        $updated_at = db_now();
-        $updated_by = auth_get_current_user_id();
         $bug_id = $p_updated_bug->id;
-        array_push($db_params, $approval_id, $updated_at, $updated_by, $bug_id);
-
-        // Update existing record
-        $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
-        $query = "UPDATE {$table_name}
-                  SET resource_01_id = " . db_param() . ",
-                      resource_01_time = " . db_param() . ",
-                      resource_02_id = " . db_param() . ",
-                      resource_02_time = " . db_param() . ",
-                      resource_03_id = " . db_param() . ",
-                      resource_03_time = " . db_param() . ",
-                      resource_04_id = " . db_param() . ",
-                      resource_04_time = " . db_param() . ",
-                      resource_05_id = " . db_param() . ",
-                      resource_05_time = " . db_param() . ",
-                      resource_06_id = " . db_param() . ",
-                      resource_06_time = " . db_param() . ",
-                      resource_07_id = " . db_param() . ",
-                      resource_07_time = " . db_param() . ",
-                      resource_08_id = " . db_param() . ",
-                      resource_08_time = " . db_param() . ",
-                      resource_09_id = " . db_param() . ",
-                      resource_09_time = " . db_param() . ",
-                      resource_10_id = " . db_param() . ",
-                      resource_10_time = " . db_param() . ",
-                      resource_11_id = " . db_param() . ",
-                      resource_11_time = " . db_param() . ",
-                      resource_12_id = " . db_param() . ",
-                      resource_12_time = " . db_param() . ",
-                      approval_id = " . db_param() . ",
-                      updated_at = " . db_param() . ",
-                      updated_by = " . db_param() . "
-                  WHERE bug_id = " . db_param();
-        db_query($query, $db_params);
+        $this->save_custom_data($bug_id);
     }
 
     function start_buffer()
@@ -546,7 +638,19 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     "$1$match$2",
                     $content
                 );
+            } else {
+                $content = preg_replace(
+                    '/(<td[^>]*class="[^"]*bug-assigned-to[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
+                    '<td colspan="4">&nbsp;</td>',
+                    $content
+                );
             }
+        } else {
+            $content = preg_replace(
+                '/(<td[^>]*class="[^"]*bug-assigned-to[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
+                '<td colspan="4">&nbsp;</td>',
+                $content
+            );
         }
 
         // Move "Task Start Date" field to the correct position
@@ -570,7 +674,19 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     "$1$match$2",
                     $content
                 );
+            } else {
+                $content = preg_replace(
+                    '/(<td[^>]*class="[^"]*bug-severity[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
+                    '<td colspan="4">&nbsp;</td>',
+                    $content
+                );
             }
+        } else {
+            $content = preg_replace(
+                '/(<td[^>]*class="[^"]*bug-severity[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
+                '<td colspan="4">&nbsp;</td>',
+                $content
+            );
         }
 
         // Remove empty row tag "<tr></tr>"

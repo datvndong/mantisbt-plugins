@@ -11,9 +11,15 @@ $(document).ready(function () {
         .on('dp.change', function (e) {
             const name = $(this).attr('name');
             const dp = e.date;
-            $(`input[name=${name}_year]`).val(dp.year());
-            $(`input[name=${name}_month]`).val(dp.month() + 1);
-            $(`input[name=${name}_day]`).val(dp.date());
+            if (dp) {
+                $(`input[name=${name}_year]`).val(dp.year());
+                $(`input[name=${name}_month]`).val(dp.month() + 1);
+                $(`input[name=${name}_day]`).val(dp.date());
+            } else {
+                $(`input[name=${name}_year]`).val('0');
+                $(`input[name=${name}_month]`).val('0');
+                $(`input[name=${name}_day]`).val('0');
+            }
         });
 
     // Update "Total No. of Program Days" when "Due Date" or "Task Start Date" has changed
@@ -25,9 +31,12 @@ $(document).ready(function () {
         return [1, 2, 3, 4, 5].reduce(sum, 0);
     }
     $('input#custom_field_task_start_date, input#due_date').on('dp.change', function () {
-        const startDate = new Date($('input#custom_field_task_start_date').val());
-        const dueDate = new Date($('input#due_date').val());
-        const programDays = countProgramDays(startDate, dueDate);
+        const startDate = $('input#custom_field_task_start_date').val();
+        const dueDate = $('input#due_date').val();
+        let programDays = 0;
+        if (startDate && dueDate) {
+            programDays = countProgramDays(new Date(startDate), new Date(dueDate));
+        }
         $('td#total_program_days').text(programDays);
     });
 
