@@ -17,6 +17,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return !is_string($p_timestamp) || empty($p_timestamp) ? '' : date($p_format, $p_timestamp);
     }
 
+    private function user_get_name(?int $p_user_id = NO_USER): string
+    {
+        return NO_USER == $p_user_id ? '' : user_get_name($p_user_id);
+    }
+
     /**
      * @throws ClientException
      */
@@ -26,18 +31,23 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Check if record exists
         $existing_data = $this->get_custom_data($p_bug_id);
+        $updated_data = array();
 
         // Build db params
         $db_params = array();
         for ($i = 0; $i < 12; $i++) {
             $resource_no = sprintf('%02d', ($i + 1));
-            array_push(
-                $db_params,
-                gpc_get_int("resource_{$resource_no}_id", 0),
-                $this->convert_hhmm_to_minutes(gpc_get_string("resource_{$resource_no}_time", '')),
-            );
+
+            $resource_id = gpc_get_int("resource_{$resource_no}_id", 0);
+            $updated_data["resource_{$resource_no}_id"] = $resource_id;
+
+            $resource_time = gpc_get_string("resource_{$resource_no}_time", '');
+            $updated_data["resource_{$resource_no}_time"] = $resource_time;
+
+            array_push($db_params, $resource_id, $this->convert_hhmm_to_minutes($resource_time));
         }
         $approval_id = gpc_get_int('approval_id', 0);
+        $updated_data['approval_id'] = $approval_id;
         $current_time = db_now();
         $current_user_id = auth_get_current_user_id();
         array_push($db_params, $approval_id, $current_time, $current_user_id);
@@ -149,6 +159,31 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                       WHERE bug_id = " . db_param();
         }
         db_query($query, $db_params);
+
+        # log changes to any custom fields that were changed (compare happens in history_log_event_direct)
+        for ($i = 1; $i <= 12; $i++) {
+            $resource_no = sprintf('%02d', $i);
+            $field_name = plugin_lang_get('planned_resource') . $resource_no;
+
+            history_log_event_direct(
+                $p_bug_id,
+                $field_name . ' Member',
+                $this->user_get_name($existing_data["resource_{$resource_no}_id"]),
+                $this->user_get_name($updated_data["resource_{$resource_no}_id"])
+            );
+            history_log_event_direct(
+                $p_bug_id,
+                $field_name . ' Time',
+                db_minutes_to_hhmm($existing_data["resource_{$resource_no}_time"]),
+                $updated_data["resource_{$resource_no}_time"]
+            );
+        }
+        history_log_event_direct(
+            $p_bug_id,
+            plugin_lang_get('estimation_approval'),
+            $this->user_get_name($existing_data['approval_id']),
+            $this->user_get_name($updated_data['approval_id'])
+        );
     }
 
     private function convert_hhmm_to_minutes(?string $p_hhmm = ''): int
@@ -478,7 +513,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     print_assign_to_option_list($resource_id, $bug_project_id);
                     echo '</select>';
                 } else if (NO_USER != $resource_id) {
-                    echo string_display_line(user_get_name($resource_id));
+                    echo string_display_line($this->user_get_name($resource_id));
                 }
                 echo '</td>';
             }
@@ -518,7 +553,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             print_assign_to_option_list($bug_custom_data['approval_id'], $bug_project_id);
             echo '</select>';
         } else if (NO_USER != $bug_custom_data['approval_id']) {
-            echo string_display_line(user_get_name($bug_custom_data['approval_id']));
+            echo string_display_line($this->user_get_name($bug_custom_data['approval_id']));
         }
         echo '</td>';
         echo '<td colspan="2">&nbsp;</td>';
