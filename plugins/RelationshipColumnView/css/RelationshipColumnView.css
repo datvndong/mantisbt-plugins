@@ -1,0 +1,78 @@
+span.rcv_tooltip_title
+{
+   display: block;
+   padding-bottom: 3px;
+   border-bottom: 1px solid #777;
+   text-align: left;
+}
+
+span.rcv_tooltip_content
+{
+   display: block;
+   margin-top: 4px;
+   text-align: left;
+}
+
+span.rcv_tooltip_icon
+{
+   position: absolute;
+   right: 8px;
+}
+
+a.rcv_tooltip span.rcv_tooltip_box
+{
+   display: none;
+   white-space: normal;
+   
+   z-index: 10;
+   padding: 4px 8px;
+   margin-top: 30px;
+   margin-left: -160px;
+   width: 250px;
+   line-height: 16px;
+
+   position: absolute;
+   border: 1px solid #777; 
+   color: #121212;
+   background-color: #dedede;
+   background-image: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#fdfdfd), to(#dedede));
+   background-image: -webkit-linear-gradient(top, #fdfdfd, #dedede);
+   background-image: -moz-linear-gradient(top, #fdfdfd, #dedede);
+   background-image: -ms-linear-gradient(top, #fdfdfd, #dedede);
+   background-image: -o-linear-gradient(top, #fdfdfd, #dedede);
+   background-image: linear-gradient(top, #fdfdfd, #dedede);
+
+   /* CSS3 */
+   -moz-border-radius: 6px;
+   -webkit-border-radius: 6px;
+   border-radius: 6px;
+}
+
+a.rcv_tooltip:hover span.rcv_tooltip_box
+{
+   display: block;
+}
+
+div.rcv_icons
+{
+   clear: both;
+   display: inline-block;
+   overflow: hidden;
+   white-space: nowrap;
+}
+
+div.rcv_summary_item
+{
+   clear: both;
+   display: inline-block;
+   overflow: hidden;
+   white-space: nowrap;
+}
+
+div.rcv_summary_list
+{
+   display: inline-block;
+   text-align: right;
+   float: right;
+   clear: right;
+}
