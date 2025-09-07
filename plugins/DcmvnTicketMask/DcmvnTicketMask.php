@@ -292,6 +292,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     {
         $hooks = array(
             'EVENT_VIEW_BUG_DETAILS' => 'display_custom_field_in_view',
+            'EVENT_REPORT_BUG_FORM' => 'add_custom_field_to_report_form',
+            'EVENT_REPORT_BUG' => 'process_custom_field_on_report',
             'EVENT_UPDATE_BUG_FORM' => 'add_custom_field_to_update_form',
             'EVENT_UPDATE_BUG' => 'process_custom_field_on_update',
         );
@@ -301,6 +303,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             case 'view.php':
                 $hooks['EVENT_LAYOUT_BODY_BEGIN'] = 'start_buffer';
                 $hooks['EVENT_LAYOUT_BODY_END'] = 'process_view_buffer';
+                break;
+            case 'bug_report_page.php':
+                $hooks['EVENT_LAYOUT_BODY_BEGIN'] = 'start_buffer';
+                $hooks['EVENT_LAYOUT_BODY_END'] = 'process_bug_report_page_buffer';
                 break;
             case 'bug_update_page.php':
                 $hooks['EVENT_LAYOUT_BODY_BEGIN'] = 'start_buffer';
@@ -453,6 +459,95 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</th>';
         echo '<td class="bug-actual-vs-planned-hours"></td>';
         echo '</tr>';
+    }
+
+    function add_custom_field_to_report_form($p_event, $p_project_id)
+    {
+        // Add temporary div container to move all content inside to the last position of the form
+        echo '<div id="temp-custom-field">';
+
+        echo '<tr>';
+        // Add empty field to the beginning of the row
+        echo '<th class="category"></th>';
+        echo '<td></td>';
+        // Add "Total No. of MD's" field
+        echo '<th class="category"><label for="total_md">';
+        echo plugin_lang_get('total_md');
+        echo '</label></th>';
+        echo '<td id="total_md">0</td>';
+        // Add "Total No. of Program Days" field
+        echo '<th class="category"><label for="total_program_days">';
+        echo plugin_lang_get('total_program_days');
+        echo '</label></th>';
+        echo '<td id="total_program_days">0</td>';
+        echo '</tr>';
+
+        // Add "Planned Resource No. 01" -> "Planned Resource No. 12" fields
+        for ($i = 0; $i < 4; $i++) {
+            echo '<tr>';
+            for ($j = 0; $j < 3; $j++) {
+                $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
+
+                echo '<th class="category" rowspan="2" style="vertical-align: middle">';
+                echo "<label for=\"resource_$resource_no\">";
+                echo plugin_lang_get('planned_resource') . $resource_no;
+                echo '</label>';
+                echo '</th>';
+                echo '<td>';
+                if (access_has_project_level(config_get('update_bug_assign_threshold'))) {
+                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
+                    echo '<option value="0">&nbsp;</option>';
+                    print_assign_to_option_list(0, $p_project_id);
+                    echo '</select>';
+                }
+                echo '</td>';
+            }
+            echo '</tr>';
+
+            echo '<tr>';
+            for ($j = 0; $j < 3; $j++) {
+                $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
+
+                echo '<td>';
+                echo "<input tabindex=\"0\" type=\"text\" id=\"resource_{$resource_no}_time\" name=\"resource_{$resource_no}_time\" " .
+                    'class="datetimepicker input-sm" size="5" data-picker-locale="' . lang_get_current_datetime_locale() . '" ' .
+                    'data-picker-format="HH:mm" maxlength="5" value="00:00" />';
+                print_icon('fa-clock-o', 'fa-xlg datetimepicker');
+                echo '</td>';
+            }
+            echo '</tr>';
+        }
+
+        echo '<tr>';
+        // Add "Total Planned Hours" field
+        echo '<th class="category"><label for="total_planned_hours">';
+        echo plugin_lang_get('total_planned_hours');
+        echo '</label></th>';
+        echo '<td id="total_planned_hours">0</td>';
+        // Add "Estimation Approval" field
+        echo '<th class="category"><label for="approval_id">';
+        echo plugin_lang_get('estimation_approval');
+        echo '</label></th>';
+        echo '<td>';
+        if (access_has_project_level(config_get('update_bug_assign_threshold'))) {
+            echo "<select tabindex=\"0\" id=\"approval_id\" name=\"approval_id\" class=\"input-sm\">";
+            echo '<option value="0">&nbsp;</option>';
+            print_assign_to_option_list(0, $p_project_id);
+            echo '</select>';
+        }
+        echo '</td>';
+        echo '<td colspan="2">&nbsp;</td>';
+        echo '</tr>';
+
+        echo '</div>';
+    }
+
+    /**
+     * @throws ClientException
+     */
+    function process_custom_field_on_report($p_event, $p_inserted_bug, $p_bug_id)
+    {
+        $this->save_custom_data($p_bug_id);
     }
 
     /**
@@ -751,7 +846,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
 
         // Remove empty row tag "<tr></tr>"
-        $content = preg_replace('/<tr[^>]*><\/tr>/i', '', $content);
+        $content = preg_replace('/<tr[^>]*>\s*<\/tr>/i', '', $content);
 
         // Remove empty row tag which has an empty cell inside "<tr><td colspan="4">&nbsp;</td></tr>"
         $content = preg_replace(
@@ -777,6 +872,206 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<script src = "' . plugin_file('dcmvn_ticket_mask_page_view.js') . '" ></script>';
     }
 
+    function process_bug_report_page_buffer()
+    {
+        if (ob_get_level() == 0 || !ob_get_length()) {
+            return;
+        }
+
+        $content = ob_get_clean();
+
+        // Remove "Reproducibility" field from its current position
+        $content = preg_replace(
+            '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+            '<label[^>]*for="reproducibility"[^>]*>.*?<\/label>\s*' .
+            '<\/th>\s*' .
+            '<td[^>]*>\s*' .
+            '<select[^>]*id="reproducibility"[^>]*name="reproducibility"[^>]*>.*?<\/select>' .
+            '.*?<\/td>' .
+            '/si',
+            '',
+            $content
+        );
+
+        // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"
+        // Update "Due Date" size and maxlength from "16" to "10"
+        $content = preg_replace(
+            '/(<input[^>]*id="due_date"[^>]*data-picker-format=")[^"]*' .
+            '("[^>]*size=")[^"]*' .
+            '("[^>]*maxlength=")[^"]*' .
+            '("[^>]*>)' .
+            '/i',
+            '${1}Y-MM-DD${2}10${3}10${4}',
+            $content
+        );
+
+        // Remove "Product Version" field from its current position
+        $content = preg_replace(
+            '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+            '<label[^>]*for="product_version"[^>]*>.*?<\/label>\s*' .
+            '<\/th>\s*' .
+            '<td[^>]*>\s*' .
+            '<select[^>]*id="product_version"[^>]*name="product_version"[^>]*>.*?<\/select>' .
+            '.*?<\/td>' .
+            '/si',
+            '',
+            $content
+        );
+
+        // Remove "Steps To Reproduce" field from its current position
+        $content = preg_replace(
+            '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+            '<label[^>]*for="steps_to_reproduce"[^>]*>.*?<\/label>\s*' .
+            '<\/th>\s*' .
+            '<td[^>]*>\s*' .
+            '<textarea[^>]*id="steps_to_reproduce"[^>]*name="steps_to_reproduce"[^>]*>.*?<\/textarea>' .
+            '.*?<\/td>' .
+            '/si',
+            '',
+            $content
+        );
+
+        // Remove "View Status" field from its current position
+        $content = preg_replace(
+            '/<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*View Status\s*<\/th>\s*' .
+            '<td[^>]*>\s*' .
+            '<label[^>]*>\s*<input[^>]*name="view_state"[^>]*>.*?<\/label>' .
+            '.*?<\/td>' .
+            '/si',
+            '',
+            $content
+        );
+
+        // Move "Task Compl. Req." field to the correct position
+        $task_completion_date_field_id = plugin_config_get(self::COMPLETION_DATE_FIELD_CONFIG, 0);
+        if ($task_completion_date_field_id > 0) {
+            $field_definition = custom_field_get_definition($task_completion_date_field_id)['name'];
+
+            $pattern =
+                '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+                "<label[^>]*for=\"custom_field_$task_completion_date_field_id\"[^>]*>\s*" .
+                "$field_definition\s*" .
+                '<\/label>\s*' .
+                '<\/th>\s*)' .
+                '<td[^>]*>.*?' .
+                "<input[^>]*name=\"custom_field_{$task_completion_date_field_id}_presence\"[^>]*>" .
+                '.*?<\/td>' .
+                '/si';
+            // Reformat "Task Compl. Req." field with a "Y-MM-DD" date picker
+            $content = preg_replace(
+                $pattern,
+                '$1' .
+                '<td>' .
+                "<input tabindex=\"0\" type=\"text\" id=\"custom_field_task_completion_date\" name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
+                'maxlength="10" value />' .
+                icon_get('fa-calendar', 'fa-xlg datetimepicker') .
+                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_year\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_month\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_day\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_presence\" value=\"1\" />" .
+                '</td>',
+                $content
+            );
+
+            preg_match($pattern, $content, $matches);
+            if (count($matches) > 0) {
+                // Remove "Task Compl. Req." field from its current position
+                $content = preg_replace($pattern, '', $content);
+                // Move "Task Compl. Req." field to above "Due Date" field
+                $content = preg_replace(
+                    '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+                    '<label[^>]*for="due_date"[^>]*>.*?<\/label>\s*' .
+                    '<\/th>\s*' .
+                    '<td[^>]*>\s*' .
+                    '<input[^>]*id="due_date"[^>]*name="due_date"[^>]*>' .
+                    '.*?<\/td>)' .
+                    '/si',
+                    "$matches[0]<tr>$1</tr>",
+                    $content
+                );
+            }
+        }
+
+        // Move "Task Start Date" field to the correct position
+        $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
+        if ($task_start_date_field_id > 0) {
+            $field_definition = custom_field_get_definition($task_start_date_field_id)['name'];
+
+            $pattern =
+                '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+                "<label[^>]*for=\"custom_field_$task_start_date_field_id\"[^>]*>\s*" .
+                "$field_definition\s*" .
+                '<\/label>\s*' .
+                '<\/th>\s*)' .
+                '<td[^>]*>.*?' .
+                "<input[^>]*name=\"custom_field_{$task_start_date_field_id}_presence\"[^>]*>" .
+                '.*?<\/td>' .
+                '/si';
+            // Reformat "Task Start Date" field with a "Y-MM-DD" date picker
+            $content = preg_replace(
+                $pattern,
+                '$1' .
+                '<td>' .
+                "<input tabindex=\"0\" type=\"text\" id=\"custom_field_task_start_date\" name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
+                'maxlength="10" value />' .
+                icon_get('fa-calendar', 'fa-xlg datetimepicker') .
+                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_year\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_month\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_day\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_presence\" value=\"1\" />" .
+                '</td>',
+                $content
+            );
+
+            preg_match($pattern, $content, $matches);
+            if (count($matches) > 0) {
+                // Remove "Task Start Date" field from its current position
+                $content = preg_replace($pattern, '', $content);
+                // Move "Task Start Date" field to above "Due Date" field
+                $content = preg_replace(
+                    '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
+                    '<label[^>]*for="due_date"[^>]*>.*?<\/label>\s*' .
+                    '<\/th>\s*' .
+                    '<td[^>]*>\s*' .
+                    '<input[^>]*id="due_date"[^>]*name="due_date"[^>]*>' .
+                    '.*?<\/td>)' .
+                    '/si',
+                    "$matches[0]<tr>$1</tr>",
+                    $content
+                );
+            }
+        }
+
+        // Capture all new custom fields inside the temporary div container
+        $pattern = '/<div[^>]*id="temp-custom-field"[^>]*>(.*?)<\/div>/si';
+        preg_match($pattern, $content, $matches);
+        if (count($matches) > 1) {
+            // Remove the temporary div container and all new custom fields from theirs current position
+            $content = preg_replace($pattern, '', $content);
+            // Move all new custom fields to a new table, right after the current table
+            $content = preg_replace(
+                '/<\/table>/i',
+                '<tr class="spacer"><td colspan="6"></td></tr></table>' .
+                '<table class="table table-bordered table-condensed"><tbody>' .
+                $matches[1] .
+                '</tbody></table>',
+                $content
+            );
+        }
+
+        // Remove empty row tag "<tr></tr>"
+        $content = preg_replace('/<tr[^>]*>\s*<\/tr>/i', '', $content);
+
+        // Continue to print the output buffer content
+        echo $content;
+
+        // Add custom script file
+        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_utilities.js') . '" ></script>';
+        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_page_save.js') . '" ></script>';
+    }
+
     /**
      * @throws ClientException
      */
@@ -796,8 +1091,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Update "Due Date" size and maxlength from "16" to "10"
         $due_date = $bug_due_date > 1 ? date(config_get('short_date_format'), $bug_due_date) : '';
         $content = preg_replace(
-            '/(<input[^>]*id="due_date"[^>]*name="due_date"[^>]*class="[^"]*datetimepicker[^"]*"[^>]*size=")[^"]*' .
-            '("[^>]*data-picker-locale="[^"]*"[^>]*data-picker-format=")[^"]*' .
+            '/(<input[^>]*id="due_date"[^>]*name="due_date"[^>]*size=")[^"]*' .
+            '("[^>]*data-picker-format=")[^"]*' .
             '("[^>]*maxlength=")[^"]*' .
             '("[^>]*value=")[^"]*' .
             '("[^>]*>)' .
@@ -1007,7 +1302,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
 
         // Remove empty row tag "<tr></tr>"
-        $content = preg_replace('/<tr[^>]*><\/tr>/i', '', $content);
+        $content = preg_replace('/<tr[^>]*>\s*<\/tr>/i', '', $content);
 
         // Remove empty row tag which has an empty cell inside "<tr><td colspan="4">&nbsp;</td></tr>"
         $content = preg_replace(
