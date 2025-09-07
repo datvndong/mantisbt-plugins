@@ -25,7 +25,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     /**
      * @throws ClientException
      */
-    private function save_custom_data(?int $p_bug_id = 0)
+    private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false)
     {
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
 
@@ -161,29 +161,31 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         db_query($query, $db_params);
 
         # log changes to any custom fields that were changed (compare happens in history_log_event_direct)
-        for ($i = 1; $i <= 12; $i++) {
-            $resource_no = sprintf('%02d', $i);
-            $field_name = plugin_lang_get('planned_resource') . $resource_no;
+        if ($p_is_logging_required) {
+            for ($i = 1; $i <= 12; $i++) {
+                $resource_no = sprintf('%02d', $i);
+                $field_name = plugin_lang_get('planned_resource') . $resource_no;
 
+                history_log_event_direct(
+                    $p_bug_id,
+                    $field_name . ' Member',
+                    $this->user_get_name($existing_data["resource_{$resource_no}_id"]),
+                    $this->user_get_name($updated_data["resource_{$resource_no}_id"])
+                );
+                history_log_event_direct(
+                    $p_bug_id,
+                    $field_name . ' Time',
+                    db_minutes_to_hhmm($existing_data["resource_{$resource_no}_time"]),
+                    $updated_data["resource_{$resource_no}_time"]
+                );
+            }
             history_log_event_direct(
                 $p_bug_id,
-                $field_name . ' Member',
-                $this->user_get_name($existing_data["resource_{$resource_no}_id"]),
-                $this->user_get_name($updated_data["resource_{$resource_no}_id"])
-            );
-            history_log_event_direct(
-                $p_bug_id,
-                $field_name . ' Time',
-                db_minutes_to_hhmm($existing_data["resource_{$resource_no}_time"]),
-                $updated_data["resource_{$resource_no}_time"]
+                plugin_lang_get('estimation_approval'),
+                $this->user_get_name($existing_data['approval_id']),
+                $this->user_get_name($updated_data['approval_id'])
             );
         }
-        history_log_event_direct(
-            $p_bug_id,
-            plugin_lang_get('estimation_approval'),
-            $this->user_get_name($existing_data['approval_id']),
-            $this->user_get_name($updated_data['approval_id'])
-        );
     }
 
     private function convert_hhmm_to_minutes(?string $p_hhmm = ''): int
@@ -661,7 +663,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
     {
         $bug_id = $p_updated_bug->id;
-        $this->save_custom_data($bug_id);
+        $this->save_custom_data($bug_id, true);
     }
 
     function start_buffer()
