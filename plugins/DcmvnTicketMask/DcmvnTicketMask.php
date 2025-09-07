@@ -298,6 +298,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             'EVENT_REPORT_BUG' => 'process_custom_field_on_report',
             'EVENT_UPDATE_BUG_FORM' => 'add_custom_field_to_update_form',
             'EVENT_UPDATE_BUG' => 'process_custom_field_on_update',
+            'EVENT_BUG_DELETED' => 'process_custom_field_on_delete',
         );
 
         $current_page = basename($_SERVER['SCRIPT_NAME']);
@@ -662,8 +663,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
     {
-        $bug_id = $p_updated_bug->id;
-        $this->save_custom_data($bug_id, true);
+        $this->save_custom_data($p_updated_bug->id, true);
+    }
+
+    function process_custom_field_on_delete($p_event, $p_bug_id)
+    {
+        $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
+        $query = "DELETE FROM {$table_name} WHERE bug_id = " . db_param();
+        db_query($query, array($p_bug_id));
     }
 
     function start_buffer()
