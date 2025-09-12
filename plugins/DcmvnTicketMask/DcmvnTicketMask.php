@@ -41,10 +41,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $resource_id = gpc_get_int("resource_{$resource_no}_id", 0);
             $updated_data["resource_{$resource_no}_id"] = $resource_id;
 
-            $resource_time = gpc_get_string("resource_{$resource_no}_time", '');
+            $resource_time_hour = gpc_get_int("resource_{$resource_no}_time_hour", 0);
+            $resource_time_minute = gpc_get_int("resource_{$resource_no}_time_minute", 0);
+            $resource_time = $resource_time_hour * 60 + $resource_time_minute;
             $updated_data["resource_{$resource_no}_time"] = $resource_time;
 
-            array_push($db_params, $resource_id, $this->convert_hhmm_to_minutes($resource_time));
+            array_push($db_params, $resource_id, $resource_time);
         }
         $approval_id = gpc_get_int('approval_id', 0);
         $updated_data['approval_id'] = $approval_id;
@@ -176,7 +178,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     $p_bug_id,
                     $field_name . ' Time',
                     db_minutes_to_hhmm($existing_data["resource_{$resource_no}_time"]),
-                    $updated_data["resource_{$resource_no}_time"]
+                    db_minutes_to_hhmm($updated_data["resource_{$resource_no}_time"])
                 );
             }
             history_log_event_direct(
@@ -623,10 +625,13 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
 
                 echo '<td>';
-                echo "<input tabindex=\"0\" type=\"text\" id=\"resource_{$resource_no}_time\" name=\"resource_{$resource_no}_time\" " .
-                    'class="datetimepicker input-sm" size="5" data-picker-locale="' . lang_get_current_datetime_locale() . '" ' .
-                    'data-picker-format="HH:mm" maxlength="5" value="' . db_minutes_to_hhmm($resource_time) . '" />';
-                print_icon('fa-clock-o', 'fa-xlg datetimepicker');
+                echo "<input tabindex=\"0\" type=\"number\" id=\"resource_{$resource_no}_time_hour\" " .
+                    "name=\"resource_{$resource_no}_time_hour\" class=\"input-sm\" min=\"-1\" max=\"1001\" " .
+                    'value="' . sprintf('%04d', $resource_time / 60) . '" />';
+                echo '<span>&nbsp;:&nbsp;</span>';
+                echo "<input tabindex=\"0\" type=\"number\" id=\"resource_{$resource_no}_time_minute\" " .
+                    "name=\"resource_{$resource_no}_time_minute\" class=\"input-sm\" min=\"-15\" max=\"60\" step=\"15\" " .
+                    'value="' . sprintf('%02d', $resource_time % 60) . '" />';
                 echo '</td>';
             }
             echo '</tr>';
@@ -806,14 +811,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             } else {
                 $content = preg_replace(
                     '/(<td[^>]*class="[^"]*bug-assigned-to[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
-                    '<td colspan="4">&nbsp;</td>',
+                    "$1<td colspan=\"2\">&nbsp;</td>$2",
                     $content
                 );
             }
         } else {
             $content = preg_replace(
                 '/(<td[^>]*class="[^"]*bug-assigned-to[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
-                '<td colspan="4">&nbsp;</td>',
+                "$1<td colspan=\"2\">&nbsp;</td>$2",
                 $content
             );
         }
@@ -842,14 +847,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             } else {
                 $content = preg_replace(
                     '/(<td[^>]*class="[^"]*bug-severity[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
-                    '<td colspan="4">&nbsp;</td>',
+                    "$1<td colspan=\"2\">&nbsp;</td>$2",
                     $content
                 );
             }
         } else {
             $content = preg_replace(
                 '/(<td[^>]*class="[^"]*bug-severity[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
-                '<td colspan="4">&nbsp;</td>',
+                "$1<td colspan=\"2\">&nbsp;</td>$2",
                 $content
             );
         }
