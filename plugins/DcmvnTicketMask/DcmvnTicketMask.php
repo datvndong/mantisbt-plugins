@@ -501,7 +501,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 echo '<td>';
                 if (access_has_project_level(config_get('update_bug_assign_threshold'))) {
                     echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
-                    echo '<option value="0">&nbsp;</option>';
+                    echo '<option value>&nbsp;</option>'; // must set empty value for validation later
                     print_assign_to_option_list(0, $p_project_id);
                     echo '</select>';
                 }
@@ -514,10 +514,13 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
 
                 echo '<td>';
-                echo "<input tabindex=\"0\" type=\"text\" id=\"resource_{$resource_no}_time\" name=\"resource_{$resource_no}_time\" " .
-                    'class="datetimepicker input-sm" size="5" data-picker-locale="' . lang_get_current_datetime_locale() . '" ' .
-                    'data-picker-format="HH:mm" maxlength="5" value="00:00" />';
-                print_icon('fa-clock-o', 'fa-xlg datetimepicker');
+                echo "<input tabindex=\"0\" type=\"number\" id=\"resource_{$resource_no}_time_hour\" " .
+                    "name=\"resource_{$resource_no}_time_hour\" class=\"input-sm\" min=\"-1\" max=\"1001\" " .
+                    'readonly value="0000" />';
+                echo '<span>&nbsp;:&nbsp;</span>';
+                echo "<input tabindex=\"0\" type=\"number\" id=\"resource_{$resource_no}_time_minute\" " .
+                    "name=\"resource_{$resource_no}_time_minute\" class=\"input-sm\" min=\"-15\" max=\"60\" step=\"15\" " .
+                    'readonly value="00" />';
                 echo '</td>';
             }
             echo '</tr>';
@@ -602,6 +605,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
                 $resource_id = $bug_custom_data["resource_{$resource_no}_id"];
+                $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
+                $required = $resource_time > 0 ? 'required' : '';
 
                 echo '<th class="category" rowspan="2" style="vertical-align: middle">';
                 echo "<label for=\"resource_$resource_no\">";
@@ -610,8 +615,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 echo '</th>';
                 echo '<td>';
                 if (access_has_project_level(config_get('update_bug_assign_threshold', config_get('update_bug_threshold')))) {
-                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
-                    echo '<option value="0">&nbsp;</option>';
+                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\" $required>";
+                    echo '<option value>&nbsp;</option>'; // must set empty value for validation later
                     print_assign_to_option_list($resource_id, $bug_project_id);
                     echo '</select>';
                 } else if (NO_USER != $resource_id) {
@@ -624,16 +629,18 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             echo '<tr>';
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
+                $resource_id = $bug_custom_data["resource_{$resource_no}_id"];
                 $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
+                $readonly = NO_USER === $resource_id ? 'readonly' : '';
 
                 echo '<td>';
                 echo "<input tabindex=\"0\" type=\"number\" id=\"resource_{$resource_no}_time_hour\" " .
                     "name=\"resource_{$resource_no}_time_hour\" class=\"input-sm\" min=\"-1\" max=\"1001\" " .
-                    'value="' . sprintf('%04d', $resource_time / 60) . '" />';
+                    $readonly . ' value="' . sprintf('%04d', $resource_time / 60) . '" />';
                 echo '<span>&nbsp;:&nbsp;</span>';
                 echo "<input tabindex=\"0\" type=\"number\" id=\"resource_{$resource_no}_time_minute\" " .
                     "name=\"resource_{$resource_no}_time_minute\" class=\"input-sm\" min=\"-15\" max=\"60\" step=\"15\" " .
-                    'value="' . sprintf('%02d', $resource_time % 60) . '" />';
+                    $readonly . ' value="' . sprintf('%02d', $resource_time % 60) . '" />';
                 echo '</td>';
             }
             echo '</tr>';
