@@ -190,12 +190,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
     }
 
-    private function convert_hhmm_to_minutes(?string $p_hhmm = ''): int
-    {
-        sscanf($p_hhmm, '%d:%d', $hours, $minutes);
-        return $hours * 60 + $minutes;
-    }
-
     private function count_program_days(?int $p_start_date = 0, ?int $p_end_date = 0): int
     {
         if ($p_start_date <= 1 || $p_end_date <= 1) {
@@ -308,6 +302,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $current_page = basename($_SERVER['SCRIPT_NAME']);
         switch ($current_page) {
             case 'view.php':
+            case 'bug_reminder_page.php':
                 $hooks['EVENT_LAYOUT_BODY_BEGIN'] = 'start_buffer';
                 $hooks['EVENT_LAYOUT_BODY_END'] = 'process_view_buffer';
                 break;
@@ -318,6 +313,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             case 'bug_update_page.php':
                 $hooks['EVENT_LAYOUT_BODY_BEGIN'] = 'start_buffer';
                 $hooks['EVENT_LAYOUT_BODY_END'] = 'process_bug_update_page_buffer';
+                break;
+            case 'bug_change_status_page.php':
+                $hooks['EVENT_LAYOUT_BODY_BEGIN'] = 'start_buffer';
+                $hooks['EVENT_LAYOUT_BODY_END'] = 'process_bug_change_status_page_buffer';
                 break;
             default:
                 break;
@@ -681,7 +680,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
     {
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
-        if (BUG_UPDATE_TYPE_NORMAL === $update_type) {
+        if (BUG_UPDATE_TYPE_NORMAL === $update_type || BUG_UPDATE_TYPE_CHANGE_STATUS === $update_type) {
             $p_updated_bug->due_date = $p_updated_bug->due_date + (23 * 3600) + 59 * 60 + 59;
         }
         return $p_updated_bug;
@@ -715,11 +714,20 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
     function process_view_buffer()
     {
-        if (ob_get_level() == 0 || !ob_get_length()) {
-            return;
-        }
+        $this->process_view_buffer_with_content(null);
+    }
 
-        $content = ob_get_clean();
+    function process_view_buffer_with_content($p_content)
+    {
+        if (empty($p_content)) {
+            if (ob_get_level() === 0 || !ob_get_length()) {
+                return;
+            }
+
+            $content = ob_get_clean();
+        } else {
+            $content = $p_content;
+        }
 
         // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"
         $content = preg_replace(
@@ -915,7 +923,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
     function process_bug_report_page_buffer()
     {
-        if (ob_get_level() == 0 || !ob_get_length()) {
+        if (ob_get_level() === 0 || !ob_get_length()) {
             return;
         }
 
@@ -1118,7 +1126,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     function process_bug_update_page_buffer()
     {
-        if (ob_get_level() == 0 || !ob_get_length()) {
+        if (ob_get_level() === 0 || !ob_get_length()) {
             return;
         }
 
@@ -1384,5 +1392,37 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Add custom script file
         echo '<script src = "' . plugin_file('dcmvn_ticket_mask_utilities.js') . '" ></script>';
         echo '<script src = "' . plugin_file('dcmvn_ticket_mask_page_save.js') . '" ></script>';
+    }
+
+    /**
+     * @throws ClientException
+     */
+    function process_bug_change_status_page_buffer()
+    {
+        if (ob_get_level() === 0 || !ob_get_length()) {
+            return;
+        }
+
+        $content = ob_get_clean();
+
+        // Fetch current bug
+        $bug_id = gpc_get_int('id', 0);
+        $bug_due_date = bug_get_field($bug_id, 'due_date');
+
+        // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"
+        // Update "Due Date" size and maxlength from "16" to "10"
+        $due_date = $bug_due_date > 1 ? date(config_get('short_date_format'), $bug_due_date) : '';
+        $content = preg_replace(
+            '/(<input[^>]*id="due_date"[^>]*name="due_date"[^>]*size=")[^"]*' .
+            '("[^>]*maxlength=")[^"]*' .
+            '("[^>]*data-picker-format=")[^"]*' .
+            '("[^>]*value=")[^"]*' .
+            '("[^>]*>)' .
+            '/i',
+            '${1}10${2}10${3}Y-MM-DD${4}' . $due_date . '${5}',
+            $content
+        );
+
+        $this->process_view_buffer_with_content($content);
     }
 }
