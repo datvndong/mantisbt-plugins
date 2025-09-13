@@ -8,9 +8,9 @@ $(document).ready(function () {
 
     // Save the user's choice from the datepicker
     $('input#custom_field_task_start_date, input#custom_field_task_completion_date')
-        .on('dp.change', function (e) {
+        .on('dp.change', function (event) {
             const name = $(this).attr('name');
-            const dp = e.date;
+            const dp = event.date;
             if (dp) {
                 $(`input[name=${name}_year]`).val(dp.year());
                 $(`input[name=${name}_month]`).val(dp.month() + 1);

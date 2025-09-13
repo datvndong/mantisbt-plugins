@@ -297,8 +297,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $hooks = array(
             'EVENT_VIEW_BUG_DETAILS' => 'display_custom_field_in_view',
             'EVENT_REPORT_BUG_FORM' => 'add_custom_field_to_report_form',
+            'EVENT_REPORT_BUG_DATA' => 'process_due_date_before_report',
             'EVENT_REPORT_BUG' => 'process_custom_field_on_report',
             'EVENT_UPDATE_BUG_FORM' => 'add_custom_field_to_update_form',
+            'EVENT_UPDATE_BUG_DATA' => 'process_due_date_before_update',
             'EVENT_UPDATE_BUG' => 'process_custom_field_on_update',
             'EVENT_BUG_DELETED' => 'process_custom_field_on_delete',
         );
@@ -550,6 +552,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</div>';
     }
 
+    function process_due_date_before_report($p_event, $p_report_bug)
+    {
+        $p_report_bug->due_date = $p_report_bug->due_date + (23 * 3600) + 59 * 60 + 59;
+        return $p_report_bug;
+    }
+
     /**
      * @throws ClientException
      */
@@ -668,6 +676,15 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</td>';
         echo '<td colspan="2">&nbsp;</td>';
         echo '</tr>';
+    }
+
+    function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
+    {
+        $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
+        if (BUG_UPDATE_TYPE_NORMAL === $update_type) {
+            $p_updated_bug->due_date = $p_updated_bug->due_date + (23 * 3600) + 59 * 60 + 59;
+        }
+        return $p_updated_bug;
     }
 
     /**
