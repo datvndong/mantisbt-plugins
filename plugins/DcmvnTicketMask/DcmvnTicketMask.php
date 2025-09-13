@@ -555,9 +555,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     function process_custom_field_on_report($p_event, $p_inserted_bug, $p_bug_id)
     {
-        if ('bug_report_page.php' === basename($_SERVER['SCRIPT_NAME'])) {
-            $this->save_custom_data($p_bug_id);
-        }
+        $this->save_custom_data($p_bug_id);
     }
 
     /**
@@ -677,7 +675,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
     {
-        if ('bug_update_page.php' === basename($_SERVER['SCRIPT_NAME'])) {
+        $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
+        if (BUG_UPDATE_TYPE_NORMAL === $update_type) {
             $this->save_custom_data($p_updated_bug->id, true);
         }
     }
