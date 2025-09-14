@@ -502,7 +502,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 echo '<td>';
                 if (access_has_project_level(config_get('update_bug_assign_threshold'))) {
                     echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
-                    echo '<option value>&nbsp;</option>'; // must set empty value for validation later
+                    echo '<option value="0">&nbsp;</option>';
                     print_assign_to_option_list(0, $p_project_id);
                     echo '</select>';
                 }
@@ -610,8 +610,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
                 $resource_id = $bug_custom_data["resource_{$resource_no}_id"];
-                $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
-                $required = $resource_time > 0 ? 'required' : '';
 
                 echo '<th class="category" rowspan="2" style="vertical-align: middle">';
                 echo "<label for=\"resource_$resource_no\">";
@@ -620,8 +618,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 echo '</th>';
                 echo '<td>';
                 if (access_has_project_level(config_get('update_bug_assign_threshold', config_get('update_bug_threshold')))) {
-                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\" $required>";
-                    echo '<option value>&nbsp;</option>'; // must set empty value for validation later
+                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
+                    echo '<option value="0">&nbsp;</option>';
                     print_assign_to_option_list($resource_id, $bug_project_id);
                     echo '</select>';
                 } else if (NO_USER != $resource_id) {

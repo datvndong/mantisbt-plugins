@@ -42,19 +42,15 @@ $(document).ready(function () {
 
     // Update "Total Planned Hours" and "Total No. of MD's" when "Planned Resource No. 01 -> 12" have changed
     const computeResourceTime = (resourceNo) => {
-        const resourceTimeHour = $(`input#resource_${resourceNo}_time_hour`);
-        const resourceTimeMinute = $(`input#resource_${resourceNo}_time_minute`);
-        return (Number(resourceTimeHour.val()) || 0) * 60 + (Number(resourceTimeMinute.val()) || 0);
+        const hourElement = $(`input#resource_${resourceNo}_time_hour`);
+        const minuteElement = $(`input#resource_${resourceNo}_time_minute`);
+        return (Number(hourElement.val()) || 0) * 60 + (Number(minuteElement.val()) || 0);
     };
-    const updateTotalTime = (sender) => {
+    const updateTotalTime = () => {
         let totalTime = 0;
         for (let i = 1; i <= 12; i++) {
             const resourceNo = String(i).padStart(2, '0');
-            const resourceTime = computeResourceTime(resourceNo);
-            totalTime += resourceTime;
-            if (sender === resourceNo) {
-                $(`select#resource_${resourceNo}_id`).prop('required', resourceTime > 0);
-            }
+            totalTime += computeResourceTime(resourceNo);
         }
         $('td#total_planned_hours').text(convertMinutesToHhmm(totalTime));
         const totalMd = totalTime / (7.5 * 60);
@@ -63,11 +59,17 @@ $(document).ready(function () {
     for (let i = 1; i <= 12; i++) {
         const resourceNo = String(i).padStart(2, '0');
         $(`select#resource_${resourceNo}_id`).on('change', function (event) {
+            // Reset the custom validity for resource id element
+            this.setCustomValidity('');
+
             const readonly = (Number(event.target.value) || 0) < 1;
             $(`input#resource_${resourceNo}_time_hour`).prop('readonly', readonly);
             $(`input#resource_${resourceNo}_time_minute`).prop('readonly', readonly);
         });
         $(`input#resource_${resourceNo}_time_hour`).on('input', function (event) {
+            // Reset the custom validity for resource time hour element
+            this.setCustomValidity('');
+
             const newHour = Number(event.target.value) || 0;
             if (newHour > 1000) {
                 $(this).val('0000');
@@ -77,9 +79,12 @@ $(document).ready(function () {
                 $(this).val(String(newHour).padStart(4, '0'));
             }
 
-            updateTotalTime(resourceNo);
+            updateTotalTime();
         });
         $(`input#resource_${resourceNo}_time_minute`).on('input', function (event) {
+            // Reset the custom validity for resource time hour element
+            $(`input#resource_${resourceNo}_time_hour`)[0].setCustomValidity('');
+
             const newMinute = Number(event.target.value) || 0;
             if (newMinute > 59) {
                 $(this).val('00');
@@ -89,7 +94,37 @@ $(document).ready(function () {
                 $(this).val(String(newMinute).padStart(2, '0'));
             }
 
-            updateTotalTime(resourceNo);
+            updateTotalTime();
         });
     }
+
+    // Validate planned resources before form submission
+    $('form#update_bug_form').on('submit', function (event) {
+        for (let i = 1; i <= 12; i++) {
+            const resourceNo = String(i).padStart(2, '0');
+            const idElement = $(`select#resource_${resourceNo}_id`);
+            const resourceId = Number(idElement.val()) || 0;
+            const resourceName = $(`select#resource_${resourceNo}_id option:selected`).text();
+            const resourceTime = computeResourceTime(resourceNo);
+            // Validate if a resource user is assigned without a time
+            const hourElement = $(`input#resource_${resourceNo}_time_hour`);
+            if (resourceId > 0 && resourceTime < 1) {
+                hourElement[0].setCustomValidity(`Please enter a time for resource user "${resourceName}"`);
+                break;
+            } else {
+                hourElement[0].setCustomValidity('');
+            }
+            // Validate if a time is entered without a resource user
+            if (resourceId < 1 && resourceTime > 0) {
+                idElement[0].setCustomValidity(
+                    `You can't save a time value for the resource "${resourceNo}" without assigning it to a user`);
+            } else {
+                idElement[0].setCustomValidity('');
+            }
+        }
+        // Prevent form submission if invalid
+        if (!this.reportValidity()) {
+            event.preventDefault();
+        }
+    });
 });
