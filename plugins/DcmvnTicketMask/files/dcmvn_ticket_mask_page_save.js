@@ -99,7 +99,7 @@ $(document).ready(function () {
     }
 
     // Validate planned resources before form submission
-    $('form#update_bug_form').on('submit', function (event) {
+    $('form#update_bug_form, form#report_bug_form').on('submit', function (event) {
         for (let i = 1; i <= 12; i++) {
             const resourceNo = String(i).padStart(2, '0');
             const idElement = $(`select#resource_${resourceNo}_id`);
