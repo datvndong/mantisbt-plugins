@@ -28,6 +28,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false)
     {
+        // Validate user has sufficient access level
+        $has_access = $this->can_access_planned_resources($p_bug_id);
+        if (!$has_access) {
+            return;
+        }
+
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
 
         // Check if record exists
@@ -264,6 +270,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         );
     }
 
+    /**
+     * @throws ClientException
+     */
+    private function can_access_planned_resources(?int $p_bug_id = 0, ?int $p_project_id = null): bool
+    {
+        // Validate user has sufficient access level
+        $bug_project_id = $p_project_id ?? bug_get_field($p_bug_id, 'project_id');
+        $threshold_id = plugin_config_get(self::THRESHOLD_FIELD_CONFIG, MANAGER);
+        return access_has_project_level($threshold_id, $bug_project_id);
+    }
+
     function register()
     {
         $this->name = 'DCMVN Ticket Mask';
@@ -387,6 +404,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     {
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
+        // Validate user has sufficient access level
+        $has_access = $this->can_access_planned_resources($p_bug_id);
+        if (!$has_access) {
+            return;
+        }
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
         $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
@@ -469,8 +491,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</tr>';
     }
 
+    /**
+     * @throws ClientException
+     */
     function add_custom_field_to_report_form($p_event, $p_project_id)
     {
+        // Validate user has sufficient access level
+        $has_access = $this->can_access_planned_resources(0, $p_project_id);
+        if (!$has_access) {
+            return;
+        }
+
         // Add temporary div container to move all content inside to the last position of the form
         echo '<div id="temp-custom-field">';
 
@@ -575,6 +606,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        // Validate user has sufficient access level
+        $has_access = $this->can_access_planned_resources($p_bug_id, $bug_project_id);
+        if (!$has_access) {
+            return;
+        }
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
         $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
@@ -712,11 +748,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
     }
 
+    /**
+     * @throws ClientException
+     */
     function process_view_buffer()
     {
         $this->process_view_buffer_with_content(null);
     }
 
+    /**
+     * @throws ClientException
+     */
     function process_view_buffer_with_content($p_content)
     {
         if (empty($p_content)) {
@@ -913,6 +955,36 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
+        // Remove secret logs from issue history tab when user has insufficient access
+        $bug_id = gpc_get_int('id', 0);
+        $has_access = $this->can_access_planned_resources($bug_id);
+        if (!$has_access) {
+            // Remove "Planned Resource No" logs
+            $content = preg_replace(
+                '/<tr[^>]*>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*<a href="[^"]*">([^<]+)<\/a>\s*<\/td>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+Planned Resource No[^<]+\s*<\/td>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
+                '<\/tr>' .
+                '/si',
+                '',
+                $content
+            );
+            // Remove "Estimation Approval" logs
+            $content = preg_replace(
+                '/<tr[^>]*>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*<a href="[^"]*">([^<]+)<\/a>\s*<\/td>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+Estimation Approval[^<]+\s*<\/td>\s*' .
+                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
+                '<\/tr>' .
+                '/si',
+                '',
+                $content
+            );
+        }
+
         // Continue to print the output buffer content
         echo $content;
 
@@ -928,6 +1000,9 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
 
         $content = ob_get_clean();
+
+        // Fetch current project ID
+        $project_id = gpc_get_int('project_id', helper_get_current_project());
 
         // Remove "Reproducibility" field from its current position
         $content = preg_replace(
@@ -993,7 +1068,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Move "Task Start Date" field to the correct position
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        if ($task_start_date_field_id > 0) {
+        if ($task_start_date_field_id > 0
+            && custom_field_has_write_access_to_project($task_start_date_field_id, $project_id)) {
             $field_definition = custom_field_get_definition($task_start_date_field_id)['name'];
 
             $pattern =
@@ -1044,7 +1120,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Move "Task Compl. Req." field to the correct position
         $task_completion_date_field_id = plugin_config_get(self::COMPLETION_DATE_FIELD_CONFIG, 0);
-        if ($task_completion_date_field_id > 0) {
+        if ($task_completion_date_field_id > 0
+            && custom_field_has_write_access_to_project($task_completion_date_field_id, $project_id)) {
             $field_definition = custom_field_get_definition($task_completion_date_field_id)['name'];
 
             $pattern =
@@ -1158,7 +1235,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '<label[^>]*for="due_date"[^>]*>.*?<\/label>\s*' .
             '<\/th>\s*' .
             '<td[^>]*>\s*' .
-            '<input[^>]*id="due_date"[^>]*name="due_date"[^>]*>' .
+            '(?:<input[^>]*id="due_date"[^>]*name="due_date"[^>]*>)?' .
             '.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
@@ -1267,7 +1344,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Move "Task Compl. Req." field to the correct position
         $task_completion_date_field_id = plugin_config_get(self::COMPLETION_DATE_FIELD_CONFIG, 0);
-        if ($task_completion_date_field_id > 0) {
+        if ($task_completion_date_field_id > 0
+            && custom_field_has_write_access($task_completion_date_field_id, $bug_id)) {
             if (custom_field_is_linked($task_completion_date_field_id, $bug_project_id)) {
                 $field_definition = custom_field_get_definition($task_completion_date_field_id)['name'];
                 $field_value = custom_field_get_value($task_completion_date_field_id, $bug_id);
@@ -1314,11 +1392,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     $content
                 );
             }
+        } else {
+            $content = preg_replace(
+                '/(<td[^>]*>\s*<select[^>]*id="handler_id"[^>]*name="handler_id"[^>]*>.*?<\/select>\s*<\/td>).*?(<\/tr>)/si',
+                "$1<td colspan=\"2\">&nbsp;</td>$2",
+                $content
+            );
         }
 
         // Move "Task Start Date" field to the correct position
         $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        if ($task_start_date_field_id > 0) {
+        if ($task_start_date_field_id > 0 && custom_field_has_write_access($task_start_date_field_id, $bug_id)) {
             if (custom_field_is_linked($task_start_date_field_id, $bug_project_id)) {
                 $field_definition = custom_field_get_definition($task_start_date_field_id)['name'];
                 $field_value = custom_field_get_value($task_start_date_field_id, $bug_id);
@@ -1365,6 +1449,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     $content
                 );
             }
+        } else {
+            $content = preg_replace(
+                '/(<td[^>]*>\s*<select[^>]*id="severity"[^>]*name="severity"[^>]*>.*?<\/select>\s*<\/td>).*?(<\/tr>)/si',
+                "$1<td colspan=\"2\">&nbsp;</td>$2",
+                $content
+            );
         }
 
         // Remove empty row tag "<tr></tr>"
