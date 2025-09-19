@@ -6,6 +6,7 @@ $s_plugin_DcmvnTicketMask_ = '';
 $s_plugin_DcmvnTicketMask_plugin_title = 'DCMVN Ticket Mask';
 
 $s_plugin_DcmvnTicketMask_config_title = 'DCMVN Ticket Mask Configuration';
+$s_plugin_DcmvnTicketMask_config_threshold = 'Threshold for planned resources';
 $s_plugin_DcmvnTicketMask_config_task_start_date_field = '"Task Start Date" Field';
 $s_plugin_DcmvnTicketMask_config_task_completion_date_field = '"Task Compl. Req." Field';
 $s_plugin_DcmvnTicketMask_config_select_date_field = 'Select a date field...';

@@ -9,6 +9,7 @@ use Mantis\Exceptions\ClientException;
 class DcmvnTicketMaskPlugin extends MantisPlugin
 {
     private const CUSTOM_FIELD_TABLE_NAME = 'custom_field';
+    private const THRESHOLD_FIELD_CONFIG = 'planned_resources_threshold_id';
     private const START_DATE_FIELD_CONFIG = 'task_start_date_field_id';
     private const COMPLETION_DATE_FIELD_CONFIG = 'task_completion_date_field_id';
 
@@ -281,6 +282,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     function config(): array
     {
         return array(
+            self::THRESHOLD_FIELD_CONFIG => MANAGER,
             self::START_DATE_FIELD_CONFIG => 0,
             self::COMPLETION_DATE_FIELD_CONFIG => 0,
         );
