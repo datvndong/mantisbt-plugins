@@ -550,12 +550,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 echo '</label>';
                 echo '</th>';
                 echo '<td>';
-                if (access_has_project_level(config_get('update_bug_assign_threshold'))) {
-                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
-                    echo '<option value="0">&nbsp;</option>';
-                    print_assign_to_option_list(0, $p_project_id);
-                    echo '</select>';
-                }
+                echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
+                echo '<option value="0">&nbsp;</option>';
+                print_assign_to_option_list(0, $p_project_id);
+                echo '</select>';
                 echo '</td>';
             }
             echo '</tr>';
@@ -588,12 +586,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('estimation_approval');
         echo '</label></th>';
         echo '<td>';
-        if (access_has_project_level(config_get('update_bug_assign_threshold'))) {
-            echo "<select tabindex=\"0\" id=\"approval_id\" name=\"approval_id\" class=\"input-sm\">";
-            echo '<option value="0">&nbsp;</option>';
-            print_assign_to_option_list(0, $p_project_id);
-            echo '</select>';
-        }
+        echo "<select tabindex=\"0\" id=\"approval_id\" name=\"approval_id\" class=\"input-sm\">";
+        echo '<option value="0">&nbsp;</option>';
+        print_assign_to_option_list(0, $p_project_id);
+        echo '</select>';
         echo '</td>';
         echo '<td colspan="2">&nbsp;</td>';
         echo '</tr>';
@@ -672,14 +668,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 echo '</label>';
                 echo '</th>';
                 echo '<td>';
-                if (access_has_project_level(config_get('update_bug_assign_threshold', config_get('update_bug_threshold')))) {
-                    echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
-                    echo '<option value="0">&nbsp;</option>';
-                    print_assign_to_option_list($resource_id, $bug_project_id);
-                    echo '</select>';
-                } else if (NO_USER != $resource_id) {
-                    echo string_display_line($this->user_get_name($resource_id));
-                }
+                echo "<select tabindex=\"0\" id=\"resource_{$resource_no}_id\" name=\"resource_{$resource_no}_id\" class=\"input-sm\">";
+                echo '<option value="0">&nbsp;</option>';
+                print_assign_to_option_list($resource_id, $bug_project_id);
+                echo '</select>';
                 echo '</td>';
             }
             echo '</tr>';
@@ -717,14 +709,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('estimation_approval');
         echo '</label></th>';
         echo '<td>';
-        if (access_has_project_level(config_get('update_bug_assign_threshold', config_get('update_bug_threshold')))) {
-            echo "<select tabindex=\"0\" id=\"approval_id\" name=\"approval_id\" class=\"input-sm\">";
-            echo '<option value="0">&nbsp;</option>';
-            print_assign_to_option_list($bug_custom_data['approval_id'], $bug_project_id);
-            echo '</select>';
-        } else if (NO_USER != $bug_custom_data['approval_id']) {
-            echo string_display_line($this->user_get_name($bug_custom_data['approval_id']));
-        }
+        echo "<select tabindex=\"0\" id=\"approval_id\" name=\"approval_id\" class=\"input-sm\">";
+        echo '<option value="0">&nbsp;</option>';
+        print_assign_to_option_list($bug_custom_data['approval_id'], $bug_project_id);
+        echo '</select>';
         echo '</td>';
         echo '<td colspan="2">&nbsp;</td>';
         echo '</tr>';
@@ -1104,7 +1092,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $pattern,
                 '$1' .
                 '<td>' .
-                "<input tabindex=\"0\" type=\"text\" id=\"custom_field_task_start_date\" name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                '<input tabindex="0" type="text" id="custom_field_task_start_date" ' .
+                "name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                 'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                 'maxlength="10" value />' .
                 icon_get('fa-calendar', 'fa-xlg datetimepicker') .
@@ -1156,7 +1145,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $pattern,
                 '$1' .
                 '<td>' .
-                "<input tabindex=\"0\" type=\"text\" id=\"custom_field_task_completion_date\" name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                '<input tabindex="0" type="text" id="custom_field_task_completion_date" ' .
+                "name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                 'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                 'maxlength="10" value />' .
                 icon_get('fa-calendar', 'fa-xlg datetimepicker') .
@@ -1390,7 +1380,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     '$1' .
                     "<th class=\"category\"><label for=\"custom_field_$task_completion_date_field_id\"><span>$field_definition</span></label></th>" .
                     '<td>' .
-                    "<input tabindex=\"0\" type=\"text\" id=\"custom_field_task_completion_date\" name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                    '<input tabindex="0" type="text" id="custom_field_task_completion_date" ' .
+                    "name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                     'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                     "maxlength=\"10\" value=\"$display_date\" />" .
                     icon_get('fa-calendar', 'fa-xlg datetimepicker') .
@@ -1447,7 +1438,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     '$1' .
                     "<th class=\"category\"><label for=\"custom_field_$task_start_date_field_id\"><span>$field_definition</span></label></th>" .
                     '<td>' .
-                    "<input tabindex=\"0\" type=\"text\" id=\"custom_field_task_start_date\" name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                    '<input tabindex="0" type="text" id="custom_field_task_start_date" ' .
+                    "name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                     'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                     "maxlength=\"10\" value=\"$display_date\" />" .
                     icon_get('fa-calendar', 'fa-xlg datetimepicker') .
