@@ -308,6 +308,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     function hooks(): array
     {
         $hooks = array(
+            'EVENT_LAYOUT_RESOURCES' => 'include_ccs_file',
             'EVENT_VIEW_BUG_DETAILS' => 'display_custom_field_in_view',
             'EVENT_REPORT_BUG_FORM' => 'add_custom_field_to_report_form',
             'EVENT_REPORT_BUG_DATA' => 'process_due_date_before_report',
@@ -397,6 +398,21 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         );
     }
 
+    function include_ccs_file()
+    {
+        $affected_pages = [
+            'view.php',
+            'bug_reminder_page.php',
+            'bug_report_page.php',
+            'bug_update_page.php',
+            'bug_change_status_page.php'
+        ];
+        $current_page = basename($_SERVER['SCRIPT_NAME']);
+        if (in_array($current_page, $affected_pages)) {
+            echo '<link rel="stylesheet" type="text/css" href="' . plugin_file('DcmvnTicketMask.css') . '" />';
+        }
+    }
+
     /**
      * @throws ClientException
      */
@@ -425,14 +441,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<th class="temp-target-version category"></th>';
         echo '<td class="temp-target-version"></td>';
         // Display "Total No. of MD's" field
-        echo '<th class="bug-total-md category">';
+        echo '<th class="bug-total-md planned-resource-category">';
         echo plugin_lang_get('total_md');
         echo '</th>';
         echo '<td class="bug-total-md">';
         echo sprintf("%.2f", $total_time / (7.5 * 60));
         echo '</td>';
         // Display "Total No. of Program Days" field
-        echo '<th class="bug-total-program-days category">';
+        echo '<th class="bug-total-program-days planned-resource-category">';
         echo plugin_lang_get('total_program_days');
         echo '</th>';
         echo '<td class="bug-total-program-days">';
@@ -446,7 +462,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
 
-                echo "<th class=\"bug-planned-resource-$resource_no category\" rowspan=\"2\" style=\"vertical-align: middle\">";
+                echo "<th class=\"bug-planned-resource-$resource_no planned-resource-category\" " .
+                    'rowspan="2" style="vertical-align: middle">';
                 echo plugin_lang_get('planned_resource') . $resource_no;
                 echo '</th>';
 
@@ -470,21 +487,21 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         echo '<tr>';
         // Display "Total Planned Hours" field
-        echo '<th class="bug-total-planned-hours category">';
+        echo '<th class="bug-total-planned-hours planned-resource-category">';
         echo plugin_lang_get('total_planned_hours');
         echo '</th>';
         echo '<td class="bug-total-planned-hours">';
         echo db_minutes_to_hhmm($total_time);
         echo '</td>';
         // Display "Estimation Approval" field
-        echo '<th class="bug-estimation-approval category">';
+        echo '<th class="bug-estimation-approval planned-resource-category">';
         echo plugin_lang_get('estimation_approval');
         echo '</th>';
         echo '<td class="bug-estimation-approval">';
         print_user_with_subject($bug_custom_data['approval_id'], $p_bug_id);
         echo '</td>';
         // Display "Actual vs Planned Hours" field
-        echo '<th class="bug-actual-vs-planned-hours category">';
+        echo '<th class="bug-actual-vs-planned-hours planned-resource-category">';
         echo plugin_lang_get('actual_vs_planned_hours');
         echo '</th>';
         echo '<td class="bug-actual-vs-planned-hours"></td>';
@@ -510,12 +527,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<th class="category"></th>';
         echo '<td></td>';
         // Add "Total No. of MD's" field
-        echo '<th class="category"><label for="total_md">';
+        echo '<th class="planned-resource-category"><label for="total_md">';
         echo plugin_lang_get('total_md');
         echo '</label></th>';
         echo '<td id="total_md">0</td>';
         // Add "Total No. of Program Days" field
-        echo '<th class="category"><label for="total_program_days">';
+        echo '<th class="planned-resource-category"><label for="total_program_days">';
         echo plugin_lang_get('total_program_days');
         echo '</label></th>';
         echo '<td id="total_program_days">0</td>';
@@ -527,7 +544,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
 
-                echo '<th class="category" rowspan="2" style="vertical-align: middle">';
+                echo '<th class="planned-resource-category" rowspan="2" style="vertical-align: middle">';
                 echo "<label for=\"resource_$resource_no\">";
                 echo plugin_lang_get('planned_resource') . $resource_no;
                 echo '</label>';
@@ -562,12 +579,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         echo '<tr>';
         // Add "Total Planned Hours" field
-        echo '<th class="category"><label for="total_planned_hours">';
+        echo '<th class="planned-resource-category"><label for="total_planned_hours">';
         echo plugin_lang_get('total_planned_hours');
         echo '</label></th>';
         echo '<td id="total_planned_hours">0</td>';
         // Add "Estimation Approval" field
-        echo '<th class="category"><label for="approval_id">';
+        echo '<th class="planned-resource-category"><label for="approval_id">';
         echo plugin_lang_get('estimation_approval');
         echo '</label></th>';
         echo '<td>';
@@ -627,14 +644,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<th class="category"><label for="temp_target_version"></label></th>';
         echo '<td id="temp_target_version"></td>';
         // Add "Total No. of MD's" field
-        echo '<th class="category"><label for="total_md">';
+        echo '<th class="planned-resource-category"><label for="total_md">';
         echo plugin_lang_get('total_md');
         echo '</label></th>';
         echo '<td id="total_md">';
         echo sprintf("%.2f", $total_time / (7.5 * 60));
         echo '</td>';
         // Add "Total No. of Program Days" field
-        echo '<th class="category"><label for="total_program_days">';
+        echo '<th class="planned-resource-category"><label for="total_program_days">';
         echo plugin_lang_get('total_program_days');
         echo '</label></th>';
         echo '<td id="total_program_days">';
@@ -649,7 +666,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
                 $resource_id = $bug_custom_data["resource_{$resource_no}_id"];
 
-                echo '<th class="category" rowspan="2" style="vertical-align: middle">';
+                echo '<th class="planned-resource-category" rowspan="2" style="vertical-align: middle">';
                 echo "<label for=\"resource_$resource_no\">";
                 echo plugin_lang_get('planned_resource') . $resource_no;
                 echo '</label>';
@@ -689,14 +706,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         echo '<tr>';
         // Add "Total Planned Hours" field
-        echo '<th class="category"><label for="total_planned_hours">';
+        echo '<th class="planned-resource-category"><label for="total_planned_hours">';
         echo plugin_lang_get('total_planned_hours');
         echo '</label></th>';
         echo '<td id="total_planned_hours">';
         echo db_minutes_to_hhmm($total_time);
         echo '</td>';
         // Add "Estimation Approval" field
-        echo '<th class="category"><label for="approval_id">';
+        echo '<th class="planned-resource-category"><label for="approval_id">';
         echo plugin_lang_get('estimation_approval');
         echo '</label></th>';
         echo '<td>';
@@ -989,8 +1006,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo $content;
 
         // Add custom script file
-        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_utilities.js') . '" ></script>';
-        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_page_view.js') . '" ></script>';
+        echo '<script src="' . plugin_file('dcmvn_ticket_mask_utilities.js') . '"></script>';
+        echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_view.js') . '"></script>';
     }
 
     function process_bug_report_page_buffer()
@@ -1194,8 +1211,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo $content;
 
         // Add custom script file
-        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_utilities.js') . '" ></script>';
-        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_page_save.js') . '" ></script>';
+        echo '<script src="' . plugin_file('dcmvn_ticket_mask_utilities.js') . '"></script>';
+        echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_save.js') . '"></script>';
     }
 
     /**
@@ -1480,8 +1497,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo $content;
 
         // Add custom script file
-        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_utilities.js') . '" ></script>';
-        echo '<script src = "' . plugin_file('dcmvn_ticket_mask_page_save.js') . '" ></script>';
+        echo '<script src="' . plugin_file('dcmvn_ticket_mask_utilities.js') . '"></script>';
+        echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_save.js') . '"></script>';
     }
 
     /**
