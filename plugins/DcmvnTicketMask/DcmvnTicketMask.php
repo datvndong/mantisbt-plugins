@@ -13,17 +13,28 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     private const START_DATE_FIELD_CONFIG = 'task_start_date_field_id';
     private const COMPLETION_DATE_FIELD_CONFIG = 'task_completion_date_field_id';
 
+    /**
+     * @param string $p_format
+     * @param string|null $p_timestamp
+     * @return string
+     */
     private function format_date(string $p_format, ?string $p_timestamp = ''): string
     {
         return !is_string($p_timestamp) || empty($p_timestamp) ? '' : date($p_format, $p_timestamp);
     }
 
+    /**
+     * @param int|null $p_user_id
+     * @return string
+     */
     private function user_get_name(?int $p_user_id = NO_USER): string
     {
         return NO_USER == $p_user_id ? '' : user_get_name($p_user_id);
     }
 
     /**
+     * @param int|null $p_bug_id
+     * @param bool|null $p_is_logging_required
      * @throws ClientException
      */
     private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false)
@@ -197,6 +208,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
     }
 
+    /**
+     * @param int|null $p_start_date
+     * @param int|null $p_end_date
+     * @return int
+     */
     private function count_program_days(?int $p_start_date = 0, ?int $p_end_date = 0): int
     {
         if ($p_start_date <= 1 || $p_end_date <= 1) {
@@ -221,11 +237,19 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
     }
 
+    /**
+     * @param string|null $input
+     * @return int
+     */
     private function string_to_int(?string $input = ''): int
     {
         return is_string($input) && is_numeric($input) ? intval($input) : -1;
     }
 
+    /**
+     * @param int|null $p_bug_id
+     * @return array
+     */
     private function get_custom_data(?int $p_bug_id = 0): array
     {
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
@@ -281,7 +305,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return access_has_project_level($threshold_id, $bug_project_id);
     }
 
-    function register()
+    public function register()
     {
         $this->name = 'DCMVN Ticket Mask';
         $this->description = 'Custom the ticket appearance';
@@ -296,7 +320,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $this->contact = 'resources@linkedsoft.vn';
     }
 
-    function config(): array
+    public function config(): array
     {
         return array(
             self::THRESHOLD_FIELD_CONFIG => MANAGER,
@@ -305,7 +329,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         );
     }
 
-    function hooks(): array
+    public function hooks(): array
     {
         $hooks = array(
             'EVENT_LAYOUT_RESOURCES' => 'include_ccs_file',
@@ -345,7 +369,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return $hooks;
     }
 
-    function schema()
+    public function schema(): array
     {
         return array(
             array(
@@ -398,7 +422,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         );
     }
 
-    function include_ccs_file()
+    public function include_ccs_file()
     {
         $affected_pages = [
             'view.php',
@@ -414,9 +438,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnusedParameterInspection
      * @throws ClientException
      */
-    function display_custom_field_in_view($p_event, $p_bug_id)
+    public function display_custom_field_in_view($p_event, $p_bug_id)
     {
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
@@ -509,9 +534,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_project_id
      * @throws ClientException
      */
-    function add_custom_field_to_report_form($p_event, $p_project_id)
+    public function add_custom_field_to_report_form($p_event, $p_project_id)
     {
         // Validate user has sufficient access level
         $has_access = $this->can_access_planned_resources(0, $p_project_id);
@@ -597,24 +625,37 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</div>';
     }
 
-    function process_due_date_before_report($p_event, $p_report_bug)
+    /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_report_bug
+     * @return mixed
+     */
+    public function process_due_date_before_report($p_event, $p_report_bug)
     {
         $p_report_bug->due_date = $p_report_bug->due_date + (23 * 3600) + 59 * 60 + 59;
         return $p_report_bug;
     }
 
     /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_inserted_bug
+     * @param $p_bug_id
      * @throws ClientException
      */
-    function process_custom_field_on_report($p_event, $p_inserted_bug, $p_bug_id)
+    public function process_custom_field_on_report($p_event, $p_inserted_bug, $p_bug_id)
     {
         $this->save_custom_data($p_bug_id);
     }
 
     /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_bug_id
      * @throws ClientException
      */
-    function add_custom_field_to_update_form($p_event, $p_bug_id)
+    public function add_custom_field_to_update_form($p_event, $p_bug_id)
     {
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
@@ -718,7 +759,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '</tr>';
     }
 
-    function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
+    /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_updated_bug
+     * @param $p_original_bug
+     * @return mixed
+     */
+    public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
     {
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (BUG_UPDATE_TYPE_NORMAL === $update_type || BUG_UPDATE_TYPE_CHANGE_STATUS === $update_type) {
@@ -728,9 +776,13 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_original_bug
+     * @param $p_updated_bug
      * @throws ClientException
      */
-    function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
+    public function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
     {
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (BUG_UPDATE_TYPE_NORMAL === $update_type) {
@@ -738,14 +790,19 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
     }
 
-    function process_custom_field_on_delete($p_event, $p_bug_id)
+    /**
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_bug_id
+     */
+    public function process_custom_field_on_delete($p_event, $p_bug_id)
     {
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
-        $query = "DELETE FROM {$table_name} WHERE bug_id = " . db_param();
+        $query = "DELETE FROM $table_name WHERE bug_id = " . db_param();
         db_query($query, array($p_bug_id));
     }
 
-    function start_buffer()
+    public function start_buffer()
     {
         if (ob_get_level() === 0) {
             // Only start if no buffer exists
@@ -756,15 +813,16 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     /**
      * @throws ClientException
      */
-    function process_view_buffer()
+    public function process_view_buffer()
     {
         $this->process_view_buffer_with_content(null);
     }
 
     /**
+     * @param $p_content
      * @throws ClientException
      */
-    function process_view_buffer_with_content($p_content)
+    private function process_view_buffer_with_content($p_content)
     {
         if (empty($p_content)) {
             if (ob_get_level() === 0 || !ob_get_length()) {
@@ -792,7 +850,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '<td[^>]*class="[^"]*bug-due-date[^"]*"[^>]*>.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
-        if (count($matches) > 0) {
+        if (!empty($matches)) {
             $match = $matches[0];
             // Remove "Due Date" field from its current position
             $content = preg_replace($pattern, '', $content);
@@ -837,7 +895,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '<td[^>]*class="[^"]*bug-target-version[^"]*"[^>]*>.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
-        if (count($matches) > 0) {
+        if (!empty($matches)) {
             $match = $matches[0];
             // Remove "Target Version" field from its current position
             $content = preg_replace($pattern, '', $content);
@@ -880,7 +938,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 '<td[^>]*class="[^"]*bug-custom-field[^"]*"[^>]*>.*?<\/td>' .
                 '/si';
             preg_match($pattern, $content, $matches);
-            if (count($matches) > 0) {
+            if (!empty($matches)) {
                 $match = $matches[0];
                 // Remove "Task Compl. Req." field from its current position
                 $content = preg_replace($pattern, '', $content);
@@ -916,7 +974,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 '<td[^>]*class="[^"]*bug-custom-field[^"]*"[^>]*>.*?<\/td>' .
                 '/si';
             preg_match($pattern, $content, $matches);
-            if (count($matches) > 0) {
+            if (!empty($matches)) {
                 $match = $matches[0];
                 // Remove "Task Start Date" field from its current position
                 $content = preg_replace($pattern, '', $content);
@@ -941,7 +999,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
         }
 
-        // Remove empty row tag "<tr></tr>"
+        // Remove empty row tag `<tr></tr>`
         $content = preg_replace('/<tr[^>]*>\s*<\/tr>/i', '', $content);
 
         // Remove empty row tag which has an empty cell inside "<tr><td colspan="4">&nbsp;</td></tr>"
@@ -998,7 +1056,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_view.js') . '"></script>';
     }
 
-    function process_bug_report_page_buffer()
+    public function process_bug_report_page_buffer()
     {
         if (ob_get_level() === 0 || !ob_get_length()) {
             return;
@@ -1106,7 +1164,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
 
             preg_match($pattern, $content, $matches);
-            if (count($matches) > 0) {
+            if (!empty($matches)) {
                 // Remove "Task Start Date" field from its current position
                 $content = preg_replace($pattern, '', $content);
                 // Move "Task Start Date" field to below "Priority" field
@@ -1159,7 +1217,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
 
             preg_match($pattern, $content, $matches);
-            if (count($matches) > 0) {
+            if (!empty($matches)) {
                 // Remove "Task Compl. Req." field from its current position
                 $content = preg_replace($pattern, '', $content);
                 // Move "Task Compl. Req." field to below "Priority" field
@@ -1184,8 +1242,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             // Remove the temporary div container and all new custom fields from theirs current position
             $content = preg_replace($pattern, '', $content);
             // Move all new custom fields to a new table, right after the current table
-            $content = preg_replace(
-                '/<\/table>/i',
+            $content = str_replace(
+                '</table>',
                 '<tr class="spacer"><td colspan="6"></td></tr></table>' .
                 '<table class="table table-bordered table-condensed"><tbody>' .
                 $matches[1] .
@@ -1194,7 +1252,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
         }
 
-        // Remove empty row tag "<tr></tr>"
+        // Remove empty row tag `<tr></tr>`
         $content = preg_replace('/<tr[^>]*>\s*<\/tr>/i', '', $content);
 
         // Continue to print the output buffer content
@@ -1208,7 +1266,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     /**
      * @throws ClientException
      */
-    function process_bug_update_page_buffer()
+    public function process_bug_update_page_buffer()
     {
         if (ob_get_level() === 0 || !ob_get_length()) {
             return;
@@ -1246,7 +1304,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
-        if (count($matches) > 0) {
+        if (!empty($matches)) {
             $match = $matches[0];
             // Remove "Due Date" field from its current position
             $content = preg_replace($pattern, '', $content);
@@ -1309,7 +1367,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '.*?<\/td>' .
             '/si';
         preg_match($pattern, $content, $matches);
-        if (count($matches) > 0) {
+        if (!empty($matches)) {
             $match = $matches[0];
             // Remove "Target Version" field from its current position
             $content = preg_replace($pattern, '', $content);
@@ -1466,17 +1524,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
         }
 
-        // Remove empty row tag "<tr></tr>"
+        // Remove empty row tag `<tr></tr>`
         $content = preg_replace('/<tr[^>]*>\s*<\/tr>/i', '', $content);
 
-        // Remove empty row tag which has an empty cell inside "<tr><td colspan="4">&nbsp;</td></tr>"
+        // Remove empty row tag which has an empty cell inside `<tr><td colspan="4">&nbsp;</td></tr>`
         $content = preg_replace(
             '/<tr(?![^>]*class="spacer")[^>]*><td[^>]*colspan="[^"]*"[^>]*>.*?<\/td><\/tr>/i',
             '',
             $content
         );
 
-        // Remove duplicate spacer "<tr class="spacer"><td colspan="6"></td></tr>"
+        // Remove duplicate spacer `<tr class="spacer"><td colspan="6"></td></tr>`
         $content = preg_replace(
             '/(<tr[^>]*class="[^"]*spacer[^"]*"[^>]*><td[^>]*colspan="[^"]*"[^>]*><\/td><\/tr>)' .
             '(<tr[^>]*class="[^"]*spacer[^"]*"[^>]*><td[^>]*colspan="[^"]*"[^>]*><\/td><\/tr>)' .
@@ -1496,7 +1554,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     /**
      * @throws ClientException
      */
-    function process_bug_change_status_page_buffer()
+    public function process_bug_change_status_page_buffer()
     {
         if (ob_get_level() === 0 || !ob_get_length()) {
             return;
