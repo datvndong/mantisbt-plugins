@@ -1035,7 +1035,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         );
 
         // Remove secret logs from issue history tab when user has insufficient access
-        $bug_id = gpc_get_int('id', 0);
+        $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
         $has_access = $this->can_access_planned_resources($bug_id);
         if (!$has_access) {
             // Remove "Planned Resource No" logs
@@ -1584,7 +1584,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $content = ob_get_clean();
 
         // Fetch current bug
-        $bug_id = gpc_get_int('id', 0);
+        $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
         $bug_due_date = bug_get_field($bug_id, 'due_date');
 
         // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"

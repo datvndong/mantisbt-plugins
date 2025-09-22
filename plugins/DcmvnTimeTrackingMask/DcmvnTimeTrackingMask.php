@@ -35,9 +35,20 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
 
     public function hooks(): array
     {
-        return array(
-            'EVENT_LAYOUT_RESOURCES' => 'include_js_file',
-        );
+        $affected_pages = [
+            'view.php',
+            'bug_reminder_page.php',
+            'bug_change_status_page.php',
+        ];
+        $current_page = basename($_SERVER['SCRIPT_NAME']);
+
+        if (in_array($current_page, $affected_pages)) {
+            return array(
+                'EVENT_LAYOUT_RESOURCES' => 'include_js_file',
+            );
+        }
+
+        return array();
     }
 
     /**
@@ -46,21 +57,13 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
      */
     public function include_js_file(): void
     {
-        $affected_pages = [
-            'view.php',
-            'bug_reminder_page.php',
-            'bug_change_status_page.php'
-        ];
-        $current_page = basename($_SERVER['SCRIPT_NAME']);
-        if (in_array($current_page, $affected_pages)) {
-            $bug_id = gpc_get_int('id', 0);
-            $bug_project_id = bug_get_field($bug_id, 'project_id');
-            $threshold_id = plugin_config_get(self::BYPASS_THRESHOLD_FIELD_CONFIG, MANAGER);
-            // Skip add JavaScript file if user has bypass-level access
-            if (access_has_project_level($threshold_id, $bug_project_id)) {
-                return;
-            }
-            echo '<script src="' . plugin_file('js/dcmvn_time_tracking_mask_page_view.js') . '"></script>';
+        $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
+        $bug_project_id = bug_get_field($bug_id, 'project_id');
+        $threshold_id = plugin_config_get(self::BYPASS_THRESHOLD_FIELD_CONFIG, MANAGER);
+        // Skip add JavaScript file if user has bypass-level access
+        if (access_has_project_level($threshold_id, $bug_project_id)) {
+            return;
         }
+        echo '<script src="' . plugin_file('js/dcmvn_time_tracking_mask_page_view.js') . '"></script>';
     }
 }
