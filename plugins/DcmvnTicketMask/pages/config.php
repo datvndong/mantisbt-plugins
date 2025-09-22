@@ -2,7 +2,7 @@
 
 # Copyright (c) 2025 LinkedSoft
 
-form_security_validate('plugin_Announce_config');
+form_security_validate('plugin_DcmvnTicketMask_config');
 access_ensure_global_level(config_get('manage_plugin_threshold'));
 
 function maybe_set_option($name, $value)
@@ -46,5 +46,5 @@ if ($t_task_completion_date_field_id > 0) {
 maybe_set_option('task_start_date_field_id', $t_task_start_date_field_id);
 maybe_set_option('task_completion_date_field_id', $t_task_completion_date_field_id);
 
-form_security_purge('plugin_Announce_config');
+form_security_purge('plugin_DcmvnTicketMask_config');
 print_header_redirect(plugin_page('config_page', true));

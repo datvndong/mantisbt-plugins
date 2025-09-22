@@ -2,7 +2,7 @@
 
 # Copyright (c) 2025 LinkedSoft
 
-access_ensure_global_level(config_get("manage_plugin_threshold"));
+access_ensure_global_level(config_get('manage_plugin_threshold'));
 
 layout_page_header(plugin_lang_get('plugin_title'));
 layout_page_begin();
@@ -13,7 +13,6 @@ $t_custom_field_table = db_get_table('custom_field');
 $t_query = "SELECT id, name FROM $t_custom_field_table WHERE type = " . CUSTOM_FIELD_TYPE_DATE . " ORDER BY name";
 $t_result = db_query($t_query);
 $t_date_fields = array();
-
 while ($t_row = db_fetch_array($t_result)) {
   $t_date_fields[$t_row['id']] = $t_row['name'];
 }
@@ -22,7 +21,7 @@ while ($t_row = db_fetch_array($t_result)) {
 <div class="col-md-12 col-xs-12">
   <div class="space-10"></div>
   <div class="form-container width60">
-    <form action="<?php echo plugin_page("config") ?>" method="post">
+    <form action="<?php echo plugin_page('config') ?>" method="post">
       <fieldset>
         <div class="widget-box widget-color-blue2">
           <div class="widget-header widget-header-small">
@@ -31,7 +30,7 @@ while ($t_row = db_fetch_array($t_result)) {
               <?php echo plugin_lang_get('config_title') ?>
             </h4>
           </div>
-          <?php echo form_security_field("plugin_Announce_config") ?>
+          <?php echo form_security_field('plugin_DcmvnTicketMask_config') ?>
           <div class="widget-body">
             <div class="widget-main no-padding">
               <div class="table-responsive">

@@ -224,7 +224,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $start = new DateTime(date($ymd_format, $p_start_date));
             $end = new DateTime(date($ymd_format, $p_end_date));
 
-            $n_days = 1 + round(($end->getTimestamp() - $start->getTimestamp()) / (24 * 3600));
+            $n_days = 1 + (int)round(($end->getTimestamp() - $start->getTimestamp()) / (24 * 3600));
 
             $sum = function ($a, $b) use ($n_days, $start) {
                 return $a + floor(($n_days + (intval($start->format('w')) + 6 - $b) % 7) / 7);
@@ -433,7 +433,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         ];
         $current_page = basename($_SERVER['SCRIPT_NAME']);
         if (in_array($current_page, $affected_pages)) {
-            echo '<link rel="stylesheet" type="text/css" href="' . plugin_file('DcmvnTicketMask.css') . '" />';
+            echo '<link rel="stylesheet" type="text/css" href="' . plugin_file('css/DcmvnTicketMask.css') . '" />';
         }
     }
 
@@ -1052,8 +1052,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo $content;
 
         // Add custom script file
-        echo '<script src="' . plugin_file('dcmvn_ticket_mask_utilities.js') . '"></script>';
-        echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_view.js') . '"></script>';
+        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_utilities.js') . '"></script>';
+        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_page_view.js') . '"></script>';
     }
 
     public function process_bug_report_page_buffer()
@@ -1259,8 +1259,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo $content;
 
         // Add custom script file
-        echo '<script src="' . plugin_file('dcmvn_ticket_mask_utilities.js') . '"></script>';
-        echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_save.js') . '"></script>';
+        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_utilities.js') . '"></script>';
+        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_page_save.js') . '"></script>';
     }
 
     /**
@@ -1547,8 +1547,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo $content;
 
         // Add custom script file
-        echo '<script src="' . plugin_file('dcmvn_ticket_mask_utilities.js') . '"></script>';
-        echo '<script src="' . plugin_file('dcmvn_ticket_mask_page_save.js') . '"></script>';
+        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_utilities.js') . '"></script>';
+        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_page_save.js') . '"></script>';
     }
 
     /**
