@@ -3,6 +3,7 @@
 use Mantis\Exceptions\ClientException;
 
 /**
+ * @noinspection PhpUnused
  * @author LinkedSoft
  * @version 1.0.0
  */
@@ -10,7 +11,7 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
 {
     private const BYPASS_THRESHOLD_FIELD_CONFIG = 'bypass_threshold_id';
 
-    public function register()
+    public function register(): void
     {
         $this->name = 'DCMVN Time Tracking Mask';
         $this->description = 'Custom the time tracking appearance';
@@ -40,9 +41,10 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @throws ClientException
      */
-    public function include_js_file()
+    public function include_js_file(): void
     {
         $affected_pages = [
             'view.php',

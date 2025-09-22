@@ -31,7 +31,7 @@ foreach ($year_values as $year_value) {
 $month_options = array();
 if ($selected_year === $current_year - 1) {
     $month_values = [12];
-} else if ($include_last_month) {
+} elseif ($include_last_month) {
     $month_values = range(max(1, $current_month - 1), 12);
 } else {
     $month_values = range($current_month, 12);
