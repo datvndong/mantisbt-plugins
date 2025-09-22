@@ -3,6 +3,7 @@
 use Mantis\Exceptions\ClientException;
 
 /**
+ * @noinspection PhpUnused
  * @author LinkedSoft
  * @version 1.0.0
  */
@@ -37,7 +38,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      * @param bool|null $p_is_logging_required
      * @throws ClientException
      */
-    private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false)
+    private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false): void
     {
         // Validate user has sufficient access level
         $has_access = $this->can_access_planned_resources($p_bug_id);
@@ -305,7 +306,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return access_has_project_level($threshold_id, $bug_project_id);
     }
 
-    public function register()
+    public function register(): void
     {
         $this->name = 'DCMVN Ticket Mask';
         $this->description = 'Custom the ticket appearance';
@@ -422,7 +423,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         );
     }
 
-    public function include_ccs_file()
+    /**
+     * @noinspection PhpUnused
+     */
+    public function include_ccs_file(): void
     {
         $affected_pages = [
             'view.php',
@@ -438,10 +442,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @throws ClientException
      */
-    public function display_custom_field_in_view($p_event, $p_bug_id)
+    public function display_custom_field_in_view($p_event, $p_bug_id): void
     {
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
@@ -534,12 +539,13 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_project_id
      * @throws ClientException
      */
-    public function add_custom_field_to_report_form($p_event, $p_project_id)
+    public function add_custom_field_to_report_form($p_event, $p_project_id): void
     {
         // Validate user has sufficient access level
         $has_access = $this->can_access_planned_resources(0, $p_project_id);
@@ -626,36 +632,39 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_report_bug
      * @return mixed
      */
-    public function process_due_date_before_report($p_event, $p_report_bug)
+    public function process_due_date_before_report($p_event, $p_report_bug): mixed
     {
         $p_report_bug->due_date = $p_report_bug->due_date + (23 * 3600) + 59 * 60 + 59;
         return $p_report_bug;
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_inserted_bug
      * @param $p_bug_id
      * @throws ClientException
      */
-    public function process_custom_field_on_report($p_event, $p_inserted_bug, $p_bug_id)
+    public function process_custom_field_on_report($p_event, $p_inserted_bug, $p_bug_id): void
     {
         $this->save_custom_data($p_bug_id);
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_bug_id
      * @throws ClientException
      */
-    public function add_custom_field_to_update_form($p_event, $p_bug_id)
+    public function add_custom_field_to_update_form($p_event, $p_bug_id): void
     {
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
@@ -760,13 +769,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_updated_bug
      * @param $p_original_bug
      * @return mixed
      */
-    public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
+    public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug): mixed
     {
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (BUG_UPDATE_TYPE_NORMAL === $update_type || BUG_UPDATE_TYPE_CHANGE_STATUS === $update_type) {
@@ -776,13 +786,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_original_bug
      * @param $p_updated_bug
      * @throws ClientException
      */
-    public function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug)
+    public function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug): void
     {
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (BUG_UPDATE_TYPE_NORMAL === $update_type) {
@@ -791,18 +802,22 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_bug_id
      */
-    public function process_custom_field_on_delete($p_event, $p_bug_id)
+    public function process_custom_field_on_delete($p_event, $p_bug_id): void
     {
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
         $query = "DELETE FROM $table_name WHERE bug_id = " . db_param();
         db_query($query, array($p_bug_id));
     }
 
-    public function start_buffer()
+    /**
+     * @noinspection PhpUnused
+     */
+    public function start_buffer(): void
     {
         if (ob_get_level() === 0) {
             // Only start if no buffer exists
@@ -811,9 +826,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @throws ClientException
      */
-    public function process_view_buffer()
+    public function process_view_buffer(): void
     {
         $this->process_view_buffer_with_content(null);
     }
@@ -822,7 +838,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      * @param $p_content
      * @throws ClientException
      */
-    private function process_view_buffer_with_content($p_content)
+    private function process_view_buffer_with_content($p_content): void
     {
         if (empty($p_content)) {
             if (ob_get_level() === 0 || !ob_get_length()) {
@@ -1056,7 +1072,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_page_view.js') . '"></script>';
     }
 
-    public function process_bug_report_page_buffer()
+    /**
+     * @noinspection PhpUnused
+     */
+    public function process_bug_report_page_buffer(): void
     {
         if (ob_get_level() === 0 || !ob_get_length()) {
             return;
@@ -1264,9 +1283,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @throws ClientException
      */
-    public function process_bug_update_page_buffer()
+    public function process_bug_update_page_buffer(): void
     {
         if (ob_get_level() === 0 || !ob_get_length()) {
             return;
@@ -1552,9 +1572,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @noinspection PhpUnused
      * @throws ClientException
      */
-    public function process_bug_change_status_page_buffer()
+    public function process_bug_change_status_page_buffer(): void
     {
         if (ob_get_level() === 0 || !ob_get_length()) {
             return;
