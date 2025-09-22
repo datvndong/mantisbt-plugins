@@ -1,0 +1,10 @@
+<?php
+
+# Copyright (c) 2025 LinkedSoft
+
+$s_plugin_DcmvnTimeTrackingMask_ = '';
+$s_plugin_DcmvnTimeTrackingMask_plugin_title = 'DCMVN Time Tracking Mask';
+
+$s_plugin_DcmvnTimeTrackingMask_config_title = 'DCMVN Time Tracking Mask Configuration';
+$s_plugin_DcmvnTimeTrackingMask_config_threshold = 'Time tracking bypass threshold';
+$s_plugin_DcmvnTimeTrackingMask_config_action_update = 'Update';
