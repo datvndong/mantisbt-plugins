@@ -28,14 +28,15 @@ print_manage_menu();
               <div class="table-responsive">
                 <table class="table table-bordered table-condensed table-striped">
                   <tr>
-                    <td class="category">
-                      <?php echo plugin_lang_get('config_threshold') ?>
-                    </td>
+                    <th class="category" style="border-bottom: none">
+                      <?php echo plugin_lang_get('config_bypass_threshold') ?>
+                    </th>
                     <td>
                       <label>
-                        <select name="bypass_threshold_id" class="input-sm">
+                        <select name="time_tracking_bypass_threshold" class="input-sm">
                           <?php
-                          print_enum_string_option_list('access_levels', plugin_config_get('bypass_threshold_id'));
+                          print_enum_string_option_list('access_levels',
+                            plugin_config_get('time_tracking_bypass_threshold'));
                           ?>
                         </select>
                       </label>

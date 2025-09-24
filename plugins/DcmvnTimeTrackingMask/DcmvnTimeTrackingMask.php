@@ -9,7 +9,18 @@ use Mantis\Exceptions\ClientException;
  */
 class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
 {
-    private const BYPASS_THRESHOLD_FIELD_CONFIG = 'bypass_threshold_id';
+    private const CONFIG_KEY_TIME_TRACKING_BYPASS_THRESHOLD = 'time_tracking_bypass_threshold';
+
+    /**
+     * @throws ClientException
+     */
+    private function can_bypass_time_tracking_restriction(?int $p_bug_id = 0): bool
+    {
+        // Validate user has sufficient access level
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        $threshold_id = plugin_config_get(self::CONFIG_KEY_TIME_TRACKING_BYPASS_THRESHOLD, MANAGER);
+        return access_has_project_level($threshold_id, $bug_project_id);
+    }
 
     public function register(): void
     {
@@ -29,7 +40,7 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
     public function config(): array
     {
         return array(
-            self::BYPASS_THRESHOLD_FIELD_CONFIG => MANAGER,
+            self::CONFIG_KEY_TIME_TRACKING_BYPASS_THRESHOLD => MANAGER,
         );
     }
 
@@ -58,10 +69,9 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
     public function include_js_file(): void
     {
         $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
-        $bug_project_id = bug_get_field($bug_id, 'project_id');
-        $threshold_id = plugin_config_get(self::BYPASS_THRESHOLD_FIELD_CONFIG, MANAGER);
+        $can_bypass = $this->can_bypass_time_tracking_restriction($bug_id);
         // Skip add JavaScript file if user has bypass-level access
-        if (access_has_project_level($threshold_id, $bug_project_id)) {
+        if ($can_bypass) {
             return;
         }
         echo '<script src="' . plugin_file('js/dcmvn_time_tracking_mask_page_view.js') . '"></script>';
