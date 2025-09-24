@@ -10,7 +10,8 @@ use Mantis\Exceptions\ClientException;
 class DcmvnTicketMaskPlugin extends MantisPlugin
 {
     private const CUSTOM_FIELD_TABLE_NAME = 'custom_field';
-    private const THRESHOLD_FIELD_CONFIG = 'planned_resources_threshold_id';
+    private const CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD = 'planned_resources_view_threshold';
+    private const CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD = 'planned_resources_update_threshold';
     private const START_DATE_FIELD_CONFIG = 'task_start_date_field_id';
     private const COMPLETION_DATE_FIELD_CONFIG = 'task_completion_date_field_id';
 
@@ -41,8 +42,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false): void
     {
         // Validate user has sufficient access level
-        $has_access = $this->can_access_planned_resources($p_bug_id);
-        if (!$has_access) {
+        $can_update = $this->can_update_planned_resources($p_bug_id);
+        if (!$can_update) {
             return;
         }
 
@@ -298,11 +299,22 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     /**
      * @throws ClientException
      */
-    private function can_access_planned_resources(?int $p_bug_id = 0, ?int $p_project_id = null): bool
+    private function can_update_planned_resources(?int $p_bug_id = 0, ?int $p_project_id = null): bool
     {
         // Validate user has sufficient access level
         $bug_project_id = $p_project_id ?? bug_get_field($p_bug_id, 'project_id');
-        $threshold_id = plugin_config_get(self::THRESHOLD_FIELD_CONFIG, MANAGER);
+        $threshold_id = plugin_config_get(self::CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD, MANAGER);
+        return access_has_project_level($threshold_id, $bug_project_id);
+    }
+
+    /**
+     * @throws ClientException
+     */
+    private function can_view_planned_resources(?int $p_bug_id = 0): bool
+    {
+        // Validate user has sufficient access level
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        $threshold_id = plugin_config_get(self::CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD, MANAGER);
         return access_has_project_level($threshold_id, $bug_project_id);
     }
 
@@ -324,7 +336,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     public function config(): array
     {
         return array(
-            self::THRESHOLD_FIELD_CONFIG => MANAGER,
+            self::CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD => MANAGER,
+            self::CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD => MANAGER,
             self::START_DATE_FIELD_CONFIG => 0,
             self::COMPLETION_DATE_FIELD_CONFIG => 0,
         );
@@ -451,8 +464,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Fetch current record
         $bug_custom_data = $this->get_custom_data($p_bug_id);
         // Validate user has sufficient access level
-        $has_access = $this->can_access_planned_resources($p_bug_id);
-        if (!$has_access) {
+        $can_view = $this->can_view_planned_resources($p_bug_id);
+        if (!$can_view) {
             return;
         }
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
@@ -548,8 +561,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     public function add_custom_field_to_report_form($p_event, $p_project_id): void
     {
         // Validate user has sufficient access level
-        $has_access = $this->can_access_planned_resources(0, $p_project_id);
-        if (!$has_access) {
+        $can_update = $this->can_update_planned_resources(0, $p_project_id);
+        if (!$can_update) {
             return;
         }
 
@@ -672,8 +685,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_project_id = bug_get_field($p_bug_id, 'project_id');
         // Validate user has sufficient access level
-        $has_access = $this->can_access_planned_resources($p_bug_id, $bug_project_id);
-        if (!$has_access) {
+        $can_update = $this->can_update_planned_resources($p_bug_id, $bug_project_id);
+        if (!$can_update) {
             return;
         }
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');

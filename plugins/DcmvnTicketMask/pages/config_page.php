@@ -16,6 +16,7 @@ $t_date_fields = array();
 while ($t_row = db_fetch_array($t_result)) {
   $t_date_fields[$t_row['id']] = $t_row['name'];
 }
+
 ?>
 
 <div class="col-md-12 col-xs-12">
@@ -35,25 +36,43 @@ while ($t_row = db_fetch_array($t_result)) {
             <div class="widget-main no-padding">
               <div class="table-responsive">
                 <table class="table table-bordered table-condensed table-striped">
+                  <!-- Planned resources view threshold -->
                   <tr>
-                    <td class="category">
-                      <?php echo plugin_lang_get('config_threshold') ?>
-                    </td>
+                    <th class="category" style="border-bottom: none">
+                      <?php echo plugin_lang_get('config_view_threshold') ?>
+                    </th>
                     <td>
                       <label>
-                        <select name="planned_resources_threshold_id" class="input-sm">
+                        <select name="planned_resources_view_threshold" class="input-sm">
                           <?php
                           print_enum_string_option_list('access_levels',
-                            plugin_config_get('planned_resources_threshold_id'));
+                            plugin_config_get('planned_resources_view_threshold'));
                           ?>
                         </select>
                       </label>
                     </td>
                   </tr>
+                  <!-- Planned resources update threshold -->
                   <tr>
-                    <td class="category">
-                      <?php echo plugin_lang_get('config_task_start_date_field') ?>
+                    <th class="category" style="border-bottom: none">
+                      <?php echo plugin_lang_get('config_update_threshold') ?>
+                    </th>
+                    <td>
+                      <label>
+                        <select name="planned_resources_update_threshold" class="input-sm">
+                          <?php
+                          print_enum_string_option_list('access_levels',
+                            plugin_config_get('planned_resources_update_threshold'));
+                          ?>
+                        </select>
+                      </label>
                     </td>
+                  </tr>
+                  <!-- "Start Date" field -->
+                  <tr>
+                    <th class="category" style="border-bottom: none">
+                      <?php echo plugin_lang_get('config_task_start_date_field') ?>
+                    </th>
                     <td>
                       <label>
                         <select name="task_start_date_field_id" class="input-sm">
@@ -75,10 +94,11 @@ while ($t_row = db_fetch_array($t_result)) {
                       <?php endif; ?>
                     </td>
                   </tr>
+                  <!-- "Client Completion Date" field -->
                   <tr>
-                    <td class="category">
+                    <th class="category" style="border-bottom: none">
                       <?php echo plugin_lang_get('config_task_completion_date_field') ?>
-                    </td>
+                    </th>
                     <td>
                       <label>
                         <select name="task_completion_date_field_id" class="input-sm">
