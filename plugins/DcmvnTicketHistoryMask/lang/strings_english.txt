@@ -1,0 +1,10 @@
+<?php
+
+# Copyright (c) 2025 LinkedSoft
+
+$s_plugin_DcmvnTicketHistoryMask_ = '';
+$s_plugin_DcmvnTicketHistoryMask_plugin_title = 'DCMVN Ticket History Mask';
+
+$s_plugin_DcmvnTicketHistoryMask_config_title = 'DCMVN Ticket History Mask Configuration';
+$s_plugin_DcmvnTicketHistoryMask_config_history_view_threshold = 'Planned resources history view threshold';
+$s_plugin_DcmvnTicketHistoryMask_config_action_update = 'Update';
