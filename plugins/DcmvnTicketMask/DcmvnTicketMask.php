@@ -822,10 +822,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function start_buffer(): void
     {
-        if (ob_get_level() === 0) {
-            // Only start if no buffer exists
-            ob_start();
-        }
+        ob_start();
     }
 
     /**
@@ -1036,36 +1033,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '$1',
             $content
         );
-
-        // Remove secret logs from issue history tab when user has insufficient access
-        $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
-        $has_access = $this->can_access_planned_resources($bug_id);
-        if (!$has_access) {
-            // Remove "Planned Resource No" logs
-            $content = preg_replace(
-                '/<tr[^>]*>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*<a href="[^"]*">([^<]+)<\/a>\s*<\/td>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+Planned Resource No[^<]+\s*<\/td>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
-                '<\/tr>' .
-                '/si',
-                '',
-                $content
-            );
-            // Remove "Estimation Approval" logs
-            $content = preg_replace(
-                '/<tr[^>]*>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*<a href="[^"]*">([^<]+)<\/a>\s*<\/td>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+Estimation Approval[^<]+\s*<\/td>\s*' .
-                '<td[^>]*class="small-caption"[^>]*>\s*[^<]+\s*<\/td>\s*' .
-                '<\/tr>' .
-                '/si',
-                '',
-                $content
-            );
-        }
 
         // Continue to print the output buffer content
         echo $content;
