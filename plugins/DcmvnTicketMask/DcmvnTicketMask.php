@@ -638,9 +638,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      * @param $p_report_bug
      * @return mixed
      */
-    public function process_due_date_before_report($p_event, $p_report_bug): mixed
+    public function process_due_date_before_report($p_event, $p_report_bug)
     {
-        $p_report_bug->due_date = $p_report_bug->due_date + (23 * 3600) + 59 * 60 + 59;
+        if ($p_report_bug->due_date > 1) {
+            $p_report_bug->due_date += 86399; // Normalize the due date to the end of the day
+        }
         return $p_report_bug;
     }
 
@@ -776,11 +778,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      * @param $p_original_bug
      * @return mixed
      */
-    public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug): mixed
+    public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
     {
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
-        if (BUG_UPDATE_TYPE_NORMAL === $update_type || BUG_UPDATE_TYPE_CHANGE_STATUS === $update_type) {
-            $p_updated_bug->due_date = $p_updated_bug->due_date + (23 * 3600) + 59 * 60 + 59;
+        if (in_array($update_type, [BUG_UPDATE_TYPE_NORMAL, BUG_UPDATE_TYPE_CHANGE_STATUS])
+            && $p_updated_bug->due_date > 1) {
+            $p_updated_bug->due_date += 86399; // Normalize the due date to the end of the day
         }
         return $p_updated_bug;
     }
