@@ -7,7 +7,7 @@ $(document).ready(function () {
     });
 
     // Save the user's choice from the datepicker
-    $('input#custom_field_task_start_date, input#custom_field_task_completion_date')
+    $('input#custom_field_start_date, input#custom_field_completion_date')
         .on('dp.change', function (event) {
             const name = $(this).attr('name');
             const dp = event.date;
@@ -22,7 +22,7 @@ $(document).ready(function () {
             }
         });
 
-    // Update "Total No. of Program Days" when "Due Date" or "Task Start Date" has changed
+    // Update "Total No. of Program Days" when "Due Date" or "Start Date" has changed
     const countProgramDays = (start, end) => {
         const nDays = 1 + Math.round((end - start) / (24 * 3600 * 1000));
         const sum = function (a, b) {
@@ -30,8 +30,8 @@ $(document).ready(function () {
         };
         return [1, 2, 3, 4, 5].reduce(sum, 0);
     }
-    $('input#custom_field_task_start_date, input#due_date').on('dp.change', function () {
-        const startDate = $('input#custom_field_task_start_date').val();
+    $('input#custom_field_start_date, input#due_date').on('dp.change', function () {
+        const startDate = $('input#custom_field_start_date').val();
         const dueDate = $('input#due_date').val();
         let programDays = 0;
         if (startDate && dueDate) {

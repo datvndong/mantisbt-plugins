@@ -71,14 +71,14 @@ while ($t_row = db_fetch_array($t_result)) {
                   <!-- "Start Date" field -->
                   <tr>
                     <th class="category" style="border-bottom: none">
-                      <?php echo plugin_lang_get('config_task_start_date_field') ?>
+                      <?php echo plugin_lang_get('config_start_date_field') ?>
                     </th>
                     <td>
                       <label>
-                        <select name="task_start_date_field_id" class="input-sm">
+                        <select name="start_date_field_id" class="input-sm">
                           <option value="0"><?php echo plugin_lang_get('config_select_date_field') ?></option>
                           <?php
-                          $t_current_field = plugin_config_get('task_start_date_field_id', 0);
+                          $t_current_field = plugin_config_get('start_date_field_id', 0);
                           foreach ($t_date_fields as $t_field_id => $t_field_name) {
                             $t_selected = ($t_field_id == $t_current_field) ? 'selected="selected"' : '';
                             echo '<option value="' . $t_field_id . '" ' . $t_selected . '>' .
@@ -97,14 +97,14 @@ while ($t_row = db_fetch_array($t_result)) {
                   <!-- "Client Completion Date" field -->
                   <tr>
                     <th class="category" style="border-bottom: none">
-                      <?php echo plugin_lang_get('config_task_completion_date_field') ?>
+                      <?php echo plugin_lang_get('config_completion_date_field') ?>
                     </th>
                     <td>
                       <label>
-                        <select name="task_completion_date_field_id" class="input-sm">
+                        <select name="completion_date_field_id" class="input-sm">
                           <option value="0"><?php echo plugin_lang_get('config_select_date_field') ?></option>
                           <?php
-                          $t_current_field = plugin_config_get('task_completion_date_field_id', 0);
+                          $t_current_field = plugin_config_get('completion_date_field_id', 0);
                           foreach ($t_date_fields as $t_field_id => $t_field_name) {
                             $t_selected = ($t_field_id == $t_current_field) ? 'selected="selected"' : '';
                             echo '<option value="' . $t_field_id . '" ' . $t_selected . '>' .

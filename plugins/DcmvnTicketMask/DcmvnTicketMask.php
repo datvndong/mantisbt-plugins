@@ -12,8 +12,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     private const CUSTOM_FIELD_TABLE_NAME = 'custom_field';
     private const CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD = 'planned_resources_view_threshold';
     private const CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD = 'planned_resources_update_threshold';
-    private const START_DATE_FIELD_CONFIG = 'task_start_date_field_id';
-    private const COMPLETION_DATE_FIELD_CONFIG = 'task_completion_date_field_id';
+    private const CONFIG_KEY_START_DATE_FIELD = 'start_date_field_id';
+    private const CONFIG_KEY_COMPLETION_DATE_FIELD = 'completion_date_field_id';
 
     /**
      * @param string $p_format
@@ -338,8 +338,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return array(
             self::CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD => MANAGER,
             self::CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD => MANAGER,
-            self::START_DATE_FIELD_CONFIG => 0,
-            self::COMPLETION_DATE_FIELD_CONFIG => 0,
+            self::CONFIG_KEY_START_DATE_FIELD => 0,
+            self::CONFIG_KEY_COMPLETION_DATE_FIELD => 0,
         );
     }
 
@@ -469,8 +469,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             return;
         }
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
-        $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
+        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
+        $bug_start_date = custom_field_get_value($start_date_field_id, $p_bug_id);
 
         // Calculate total planned hours
         $total_time = 0;
@@ -690,8 +690,8 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             return;
         }
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
-        $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        $bug_start_date = custom_field_get_value($task_start_date_field_id, $p_bug_id);
+        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
+        $bug_start_date = custom_field_get_value($start_date_field_id, $p_bug_id);
 
         // Calculate total planned hours
         $total_time = 0;
@@ -956,12 +956,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
-        // Move "Task Compl. Req." field to the correct position
-        $task_completion_date_field_id = plugin_config_get(self::COMPLETION_DATE_FIELD_CONFIG, 0);
-        if ($task_completion_date_field_id > 0) {
-            $custom_field_definition = custom_field_get_definition($task_completion_date_field_id)['name'];
+        // Move "Client Completion Date" field to the correct position
+        $completion_date_field_id = plugin_config_get(self::CONFIG_KEY_COMPLETION_DATE_FIELD, 0);
+        if ($completion_date_field_id > 0) {
+            $custom_field_definition = custom_field_get_definition($completion_date_field_id)['name'];
 
-            // Capture "Task Compl. Req." field
+            // Capture "Client Completion Date" field
             $pattern =
                 "/<th[^>]*class=\"[^\"]*bug-custom-field[^\"]*category[^\"]*\"[^>]*>$custom_field_definition<\/th>\s*" .
                 '<td[^>]*class="[^"]*bug-custom-field[^"]*"[^>]*>.*?<\/td>' .
@@ -969,9 +969,9 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             preg_match($pattern, $content, $matches);
             if (!empty($matches)) {
                 $match = $matches[0];
-                // Remove "Task Compl. Req." field from its current position
+                // Remove "Client Completion Date" field from its current position
                 $content = preg_replace($pattern, '', $content);
-                // Move "Task Compl. Req." field to after "Assigned To" field
+                // Move "Client Completion Date" field to after "Assigned To" field
                 $content = preg_replace(
                     '/(<td[^>]*class="[^"]*bug-assigned-to[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
                     "$1$match$2",
@@ -992,12 +992,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
         }
 
-        // Move "Task Start Date" field to the correct position
-        $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        if ($task_start_date_field_id > 0) {
-            $custom_field_definition = custom_field_get_definition($task_start_date_field_id)['name'];
+        // Move "Start Date" field to the correct position
+        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
+        if ($start_date_field_id > 0) {
+            $custom_field_definition = custom_field_get_definition($start_date_field_id)['name'];
 
-            // Capture "Task Start Date" field
+            // Capture "Start Date" field
             $pattern =
                 "/<th[^>]*class=\"[^\"]*bug-custom-field[^\"]*category[^\"]*\"[^>]*>$custom_field_definition<\/th>\s*" .
                 '<td[^>]*class="[^"]*bug-custom-field[^"]*"[^>]*>.*?<\/td>' .
@@ -1005,9 +1005,9 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             preg_match($pattern, $content, $matches);
             if (!empty($matches)) {
                 $match = $matches[0];
-                // Remove "Task Start Date" field from its current position
+                // Remove "Start Date" field from its current position
                 $content = preg_replace($pattern, '', $content);
-                // Move "Task Start Date" field to after "Severity" field
+                // Move "Start Date" field to after "Severity" field
                 $content = preg_replace(
                     '/(<td[^>]*class="[^"]*bug-severity[^"]*"[^>]*>.*?<\/td>).*?(<\/tr>)/si',
                     "$1$match$2",
@@ -1131,45 +1131,45 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
-        // Move "Task Start Date" field to the correct position
-        $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        if ($task_start_date_field_id > 0
-            && custom_field_has_write_access_to_project($task_start_date_field_id, $project_id)) {
-            $field_definition = custom_field_get_definition($task_start_date_field_id)['name'];
+        // Move "Start Date" field to the correct position
+        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
+        if ($start_date_field_id > 0
+            && custom_field_has_write_access_to_project($start_date_field_id, $project_id)) {
+            $field_definition = custom_field_get_definition($start_date_field_id)['name'];
 
             $pattern =
                 '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
-                "<label[^>]*for=\"custom_field_$task_start_date_field_id\"[^>]*>\s*" .
+                "<label[^>]*for=\"custom_field_$start_date_field_id\"[^>]*>\s*" .
                 "$field_definition\s*" .
                 '<\/label>\s*' .
                 '<\/th>\s*)' .
                 '<td[^>]*>.*?' .
-                "<input[^>]*name=\"custom_field_{$task_start_date_field_id}_presence\"[^>]*>" .
+                "<input[^>]*name=\"custom_field_{$start_date_field_id}_presence\"[^>]*>" .
                 '.*?<\/td>' .
                 '/si';
-            // Reformat "Task Start Date" field with a "Y-MM-DD" date picker
+            // Reformat "Start Date" field with a "Y-MM-DD" date picker
             $content = preg_replace(
                 $pattern,
                 '$1' .
                 '<td>' .
-                '<input tabindex="0" type="text" id="custom_field_task_start_date" ' .
-                "name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                '<input tabindex="0" type="text" id="custom_field_start_date" ' .
+                "name=\"custom_field_$start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                 'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                 'maxlength="10" value />' .
                 icon_get('fa-calendar', 'fa-xlg datetimepicker') .
-                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_year\" value />" .
-                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_month\" value />" .
-                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_day\" value />" .
-                "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_presence\" value=\"1\" />" .
+                "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_year\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_month\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_day\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_presence\" value=\"1\" />" .
                 '</td>',
                 $content
             );
 
             preg_match($pattern, $content, $matches);
             if (!empty($matches)) {
-                // Remove "Task Start Date" field from its current position
+                // Remove "Start Date" field from its current position
                 $content = preg_replace($pattern, '', $content);
-                // Move "Task Start Date" field to below "Priority" field
+                // Move "Start Date" field to below "Priority" field
                 $content = preg_replace(
                     '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
                     '<label[^>]*for="priority"[^>]*>.*?<\/label>\s*' .
@@ -1184,45 +1184,45 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             }
         }
 
-        // Move "Task Compl. Req." field to the correct position
-        $task_completion_date_field_id = plugin_config_get(self::COMPLETION_DATE_FIELD_CONFIG, 0);
-        if ($task_completion_date_field_id > 0
-            && custom_field_has_write_access_to_project($task_completion_date_field_id, $project_id)) {
-            $field_definition = custom_field_get_definition($task_completion_date_field_id)['name'];
+        // Move "Client Completion Date" field to the correct position
+        $completion_date_field_id = plugin_config_get(self::CONFIG_KEY_COMPLETION_DATE_FIELD, 0);
+        if ($completion_date_field_id > 0
+            && custom_field_has_write_access_to_project($completion_date_field_id, $project_id)) {
+            $field_definition = custom_field_get_definition($completion_date_field_id)['name'];
 
             $pattern =
                 '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
-                "<label[^>]*for=\"custom_field_$task_completion_date_field_id\"[^>]*>\s*" .
+                "<label[^>]*for=\"custom_field_$completion_date_field_id\"[^>]*>\s*" .
                 "$field_definition\s*" .
                 '<\/label>\s*' .
                 '<\/th>\s*)' .
                 '<td[^>]*>.*?' .
-                "<input[^>]*name=\"custom_field_{$task_completion_date_field_id}_presence\"[^>]*>" .
+                "<input[^>]*name=\"custom_field_{$completion_date_field_id}_presence\"[^>]*>" .
                 '.*?<\/td>' .
                 '/si';
-            // Reformat "Task Compl. Req." field with a "Y-MM-DD" date picker
+            // Reformat "Client Completion Date" field with a "Y-MM-DD" date picker
             $content = preg_replace(
                 $pattern,
                 '$1' .
                 '<td>' .
-                '<input tabindex="0" type="text" id="custom_field_task_completion_date" ' .
-                "name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                '<input tabindex="0" type="text" id="custom_field_completion_date" ' .
+                "name=\"custom_field_$completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                 'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                 'maxlength="10" value />' .
                 icon_get('fa-calendar', 'fa-xlg datetimepicker') .
-                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_year\" value />" .
-                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_month\" value />" .
-                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_day\" value />" .
-                "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_presence\" value=\"1\" />" .
+                "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_year\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_month\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_day\" value />" .
+                "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_presence\" value=\"1\" />" .
                 '</td>',
                 $content
             );
 
             preg_match($pattern, $content, $matches);
             if (!empty($matches)) {
-                // Remove "Task Compl. Req." field from its current position
+                // Remove "Client Completion Date" field from its current position
                 $content = preg_replace($pattern, '', $content);
-                // Move "Task Compl. Req." field to below "Priority" field
+                // Move "Client Completion Date" field to below "Priority" field
                 $content = preg_replace(
                     '/(<th[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
                     '<label[^>]*for="priority"[^>]*>.*?<\/label>\s*' .
@@ -1410,23 +1410,23 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
-        // Move "Task Compl. Req." field to the correct position
-        $task_completion_date_field_id = plugin_config_get(self::COMPLETION_DATE_FIELD_CONFIG, 0);
-        if ($task_completion_date_field_id > 0
-            && custom_field_has_write_access($task_completion_date_field_id, $bug_id)) {
-            if (custom_field_is_linked($task_completion_date_field_id, $bug_project_id)) {
-                $field_definition = custom_field_get_definition($task_completion_date_field_id)['name'];
-                $field_value = custom_field_get_value($task_completion_date_field_id, $bug_id);
+        // Move "Client Completion Date" field to the correct position
+        $completion_date_field_id = plugin_config_get(self::CONFIG_KEY_COMPLETION_DATE_FIELD, 0);
+        if ($completion_date_field_id > 0
+            && custom_field_has_write_access($completion_date_field_id, $bug_id)) {
+            if (custom_field_is_linked($completion_date_field_id, $bug_project_id)) {
+                $field_definition = custom_field_get_definition($completion_date_field_id)['name'];
+                $field_value = custom_field_get_value($completion_date_field_id, $bug_id);
 
                 $display_year = $this->format_date('Y', $field_value);
                 $display_month = $this->format_date('m', $field_value);
                 $display_day = $this->format_date('d', $field_value);
                 $display_date = $this->format_date(config_get('short_date_format'), $field_value);
 
-                // Remove "Task Compl. Req." field from its current position
+                // Remove "Client Completion Date" field from its current position
                 $content = preg_replace(
                     '/<td[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
-                    "<label[^>]*for=\"custom_field_$task_completion_date_field_id\"[^>]*>\s*" .
+                    "<label[^>]*for=\"custom_field_$completion_date_field_id\"[^>]*>\s*" .
                     "<span[^>]*>$field_definition<\/span>\s*" .
                     '<\/label>\s*' .
                     '<\/td>\s*' .
@@ -1435,22 +1435,22 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     '',
                     $content
                 );
-                // Move "Task Compl. Req." field to after "Assigned To" field
+                // Move "Client Completion Date" field to after "Assigned To" field
                 $content = preg_replace(
                     '/(<td[^>]*>\s*<select[^>]*id="handler_id"[^>]*name="handler_id"[^>]*>.*?<\/select>\s*<\/td>).*?(<\/tr>)/si',
                     '$1' .
-                    "<th class=\"category\"><label for=\"custom_field_$task_completion_date_field_id\"><span>$field_definition</span></label></th>" .
+                    "<th class=\"category\"><label for=\"custom_field_$completion_date_field_id\"><span>$field_definition</span></label></th>" .
                     '<td>' .
-                    '<input tabindex="0" type="text" id="custom_field_task_completion_date" ' .
-                    "name=\"custom_field_$task_completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                    '<input tabindex="0" type="text" id="custom_field_completion_date" ' .
+                    "name=\"custom_field_$completion_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                     'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                     "maxlength=\"10\" value=\"$display_date\" />" .
                     icon_get('fa-calendar', 'fa-xlg datetimepicker') .
                     '</td>' .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_year\" value=\"$display_year\">" .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_month\" value=\"$display_month\">" .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_day\" value=\"$display_day\">" .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_completion_date_field_id}_presence\" value=\"1\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_year\" value=\"$display_year\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_month\" value=\"$display_month\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_day\" value=\"$display_day\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$completion_date_field_id}_presence\" value=\"1\">" .
                     '$2',
                     $content
                 );
@@ -1469,22 +1469,22 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             );
         }
 
-        // Move "Task Start Date" field to the correct position
-        $task_start_date_field_id = plugin_config_get(self::START_DATE_FIELD_CONFIG, 0);
-        if ($task_start_date_field_id > 0 && custom_field_has_write_access($task_start_date_field_id, $bug_id)) {
-            if (custom_field_is_linked($task_start_date_field_id, $bug_project_id)) {
-                $field_definition = custom_field_get_definition($task_start_date_field_id)['name'];
-                $field_value = custom_field_get_value($task_start_date_field_id, $bug_id);
+        // Move "Start Date" field to the correct position
+        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
+        if ($start_date_field_id > 0 && custom_field_has_write_access($start_date_field_id, $bug_id)) {
+            if (custom_field_is_linked($start_date_field_id, $bug_project_id)) {
+                $field_definition = custom_field_get_definition($start_date_field_id)['name'];
+                $field_value = custom_field_get_value($start_date_field_id, $bug_id);
 
                 $display_year = $this->format_date('Y', $field_value);
                 $display_month = $this->format_date('m', $field_value);
                 $display_day = $this->format_date('d', $field_value);
                 $display_date = $this->format_date(config_get('short_date_format'), $field_value);
 
-                // Remove "Task Start Date" field from its current position
+                // Remove "Start Date" field from its current position
                 $content = preg_replace(
                     '/<td[^>]*class="[^"]*category[^"]*"[^>]*>\s*' .
-                    "<label[^>]*for=\"custom_field_$task_start_date_field_id\"[^>]*>\s*" .
+                    "<label[^>]*for=\"custom_field_$start_date_field_id\"[^>]*>\s*" .
                     "<span[^>]*>$field_definition<\/span>\s*" .
                     '<\/label>\s*' .
                     '<\/td>\s*' .
@@ -1493,22 +1493,22 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     '',
                     $content
                 );
-                // Move "Task Start Date" field to after "Severity" field
+                // Move "Start Date" field to after "Severity" field
                 $content = preg_replace(
                     '/(<td[^>]*>\s*<select[^>]*id="severity"[^>]*name="severity"[^>]*>.*?<\/select>\s*<\/td>).*?(<\/tr>)/si',
                     '$1' .
-                    "<th class=\"category\"><label for=\"custom_field_$task_start_date_field_id\"><span>$field_definition</span></label></th>" .
+                    "<th class=\"category\"><label for=\"custom_field_$start_date_field_id\"><span>$field_definition</span></label></th>" .
                     '<td>' .
-                    '<input tabindex="0" type="text" id="custom_field_task_start_date" ' .
-                    "name=\"custom_field_$task_start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
+                    '<input tabindex="0" type="text" id="custom_field_start_date" ' .
+                    "name=\"custom_field_$start_date_field_id\" class=\"datetimepicker input-sm\" size=\"10\" " .
                     'data-picker-locale="' . lang_get_current_datetime_locale() . '" data-picker-format="Y-MM-DD" ' .
                     "maxlength=\"10\" value=\"$display_date\" />" .
                     icon_get('fa-calendar', 'fa-xlg datetimepicker') .
                     '</td>' .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_year\" value=\"$display_year\">" .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_month\" value=\"$display_month\">" .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_day\" value=\"$display_day\">" .
-                    "<input type=\"hidden\" name=\"custom_field_{$task_start_date_field_id}_presence\" value=\"1\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_year\" value=\"$display_year\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_month\" value=\"$display_month\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_day\" value=\"$display_day\">" .
+                    "<input type=\"hidden\" name=\"custom_field_{$start_date_field_id}_presence\" value=\"1\">" .
                     '$2',
                     $content
                 );
