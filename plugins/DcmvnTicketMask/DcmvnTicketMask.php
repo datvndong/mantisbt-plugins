@@ -793,7 +793,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
     {
-        $update_type = gpc_get_string('action_type', 'none');
+        $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (in_array($update_type, [BUG_UPDATE_TYPE_NORMAL, BUG_UPDATE_TYPE_CHANGE_STATUS])
             && $p_updated_bug->due_date > 1) {
             $p_updated_bug->due_date += 86399; // Normalize the due date to the end of the day
@@ -811,7 +811,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function process_custom_field_on_update($p_event, $p_original_bug, $p_updated_bug): void
     {
-        $update_type = gpc_get_string('action_type', 'none');
+        $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (BUG_UPDATE_TYPE_NORMAL === $update_type) {
             $this->save_custom_data($p_updated_bug->id, true);
         }
