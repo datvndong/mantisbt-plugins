@@ -10,6 +10,7 @@ use Mantis\Exceptions\ClientException;
 class DcmvnTicketMaskPlugin extends MantisPlugin
 {
     private const CUSTOM_FIELD_TABLE_NAME = 'custom_field';
+    private const CONFIG_KEY_IMPACTED_PROJECT_IDS = 'impacted_project_ids';
     private const CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD = 'planned_resources_view_threshold';
     private const CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD = 'planned_resources_update_threshold';
     private const CONFIG_KEY_START_DATE_FIELD = 'start_date_field_id';
@@ -41,8 +42,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false): void
     {
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            return;
+        }
         // Validate user has sufficient access level
-        $can_update = $this->can_update_planned_resources($p_bug_id);
+        $can_update = $this->can_update_planned_resources($p_bug_id, $bug_project_id);
         if (!$can_update) {
             return;
         }
@@ -307,15 +314,36 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return access_has_project_level($threshold_id, $bug_project_id);
     }
 
-    /**
-     * @throws ClientException
-     */
-    private function can_view_planned_resources(?int $p_bug_id = 0): bool
+    private function can_view_planned_resources(?int $p_project_id = 0): bool
     {
         // Validate user has sufficient access level
-        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
         $threshold_id = plugin_config_get(self::CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD, MANAGER);
-        return access_has_project_level($threshold_id, $bug_project_id);
+        return access_has_project_level($threshold_id, $p_project_id);
+    }
+
+    function is_enabled_for_project(?int $p_project_id = -1): bool
+    {
+        // Cache the parsed project IDs to avoid repeated processing
+        static $cached_project_ids = null;
+        if ($cached_project_ids === null) {
+            $impacted_project_ids = plugin_config_get(self::CONFIG_KEY_IMPACTED_PROJECT_IDS, '0');
+            if (empty($impacted_project_ids)) {
+                $cached_project_ids = [0 => true];
+            } else {
+                $project_ids = explode(',', $impacted_project_ids);
+                $sanitized_ids = array_filter(
+                    array_map('intval', array_map('trim', $project_ids)),
+                    function ($id) {
+                        return $id >= 0;
+                    }
+                );
+
+                // Flip array for O(1) lookups instead of O(n)
+                $cached_project_ids = array_flip($sanitized_ids ?: [0]);
+            }
+        }
+
+        return isset($cached_project_ids[0]) || isset($cached_project_ids[$p_project_id]);
     }
 
     public function register(): void
@@ -336,6 +364,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     public function config(): array
     {
         return array(
+            self::CONFIG_KEY_IMPACTED_PROJECT_IDS => '0',
             self::CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD => MANAGER,
             self::CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD => MANAGER,
             self::CONFIG_KEY_START_DATE_FIELD => 0,
@@ -461,13 +490,19 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function display_custom_field_in_view($p_event, $p_bug_id): void
     {
-        // Fetch current record
-        $bug_custom_data = $this->get_custom_data($p_bug_id);
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            return;
+        }
         // Validate user has sufficient access level
-        $can_view = $this->can_view_planned_resources($p_bug_id);
+        $can_view = $this->can_view_planned_resources($bug_project_id);
         if (!$can_view) {
             return;
         }
+
+        $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
         $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
         $bug_start_date = custom_field_get_value($start_date_field_id, $p_bug_id);
@@ -560,6 +595,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function add_custom_field_to_report_form($p_event, $p_project_id): void
     {
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($p_project_id);
+        if (!$is_enabled) {
+            return;
+        }
         // Validate user has sufficient access level
         $can_update = $this->can_update_planned_resources(0, $p_project_id);
         if (!$can_update) {
@@ -650,9 +690,22 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      * @param $p_event
      * @param $p_report_bug
      * @return mixed
+     * @throws ClientException
      */
     public function process_due_date_before_report($p_event, $p_report_bug)
     {
+        $bug_project_id = helper_get_current_project();
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            return $p_report_bug;
+        }
+        // Validate user has sufficient access level
+        $can_update_due_date = access_has_project_level(config_get('due_date_update_threshold'), $bug_project_id, auth_get_current_user_id());
+        if (!$can_update_due_date) {
+            return $p_report_bug;
+        }
+
         if ($p_report_bug->due_date > 1) {
             $p_report_bug->due_date += 86399; // Normalize the due date to the end of the day
         }
@@ -681,14 +734,19 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function add_custom_field_to_update_form($p_event, $p_bug_id): void
     {
-        // Fetch current record
-        $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            return;
+        }
         // Validate user has sufficient access level
         $can_update = $this->can_update_planned_resources($p_bug_id, $bug_project_id);
         if (!$can_update) {
             return;
         }
+
+        $bug_custom_data = $this->get_custom_data($p_bug_id);
         $bug_due_date = bug_get_field($p_bug_id, 'due_date');
         $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
         $bug_start_date = custom_field_get_value($start_date_field_id, $p_bug_id);
@@ -793,6 +851,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function process_due_date_before_update($p_event, $p_updated_bug, $p_original_bug)
     {
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($p_updated_bug->project_id);
+        if (!$is_enabled) {
+            return $p_updated_bug;
+        }
+        // Validate user has sufficient access level
+        $can_update_due_date = access_has_bug_level(config_get('due_date_update_threshold'), $p_updated_bug->id);
+        if (!$can_update_due_date) {
+            return $p_updated_bug;
+        }
+
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
         if (in_array($update_type, [BUG_UPDATE_TYPE_NORMAL, BUG_UPDATE_TYPE_CHANGE_STATUS])
             && $p_updated_bug->due_date > 1) {
@@ -822,9 +891,17 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      * @noinspection PhpUnusedParameterInspection
      * @param $p_event
      * @param $p_bug_id
+     * @throws ClientException
      */
     public function process_custom_field_on_delete($p_event, $p_bug_id): void
     {
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            return;
+        }
+
         $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
         $query = "DELETE FROM $table_name WHERE bug_id = " . db_param();
         db_query($query, array($p_bug_id));
@@ -844,14 +921,16 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
      */
     public function process_view_buffer(): void
     {
-        $this->process_view_buffer_with_content(null);
+        $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
+        $this->process_view_buffer_with_content($bug_id, null);
     }
 
     /**
+     * @param $p_bug_id
      * @param $p_content
      * @throws ClientException
      */
-    private function process_view_buffer_with_content($p_content): void
+    private function process_view_buffer_with_content($p_bug_id, $p_content): void
     {
         if (empty($p_content)) {
             if (ob_get_level() === 0 || !ob_get_length()) {
@@ -861,6 +940,15 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content = ob_get_clean();
         } else {
             $content = $p_content;
+        }
+
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            // Continue to print the output buffer content
+            echo $content;
+            return;
         }
 
         // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"
@@ -1067,7 +1155,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $content = ob_get_clean();
 
         // Fetch current project ID
-        $project_id = gpc_get_int('project_id', helper_get_current_project());
+        $bug_project_id = gpc_get_int('project_id', helper_get_current_project());
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            // Continue to print the output buffer content
+            echo $content;
+            return;
+        }
 
         // Remove "Reproducibility" field from its current position
         $content = preg_replace(
@@ -1134,7 +1229,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Move "Start Date" field to the correct position
         $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
         if ($start_date_field_id > 0
-            && custom_field_has_write_access_to_project($start_date_field_id, $project_id)) {
+            && custom_field_has_write_access_to_project($start_date_field_id, $bug_project_id)) {
             $field_definition = custom_field_get_definition($start_date_field_id)['name'];
 
             $pattern =
@@ -1187,7 +1282,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         // Move "Client Completion Date" field to the correct position
         $completion_date_field_id = plugin_config_get(self::CONFIG_KEY_COMPLETION_DATE_FIELD, 0);
         if ($completion_date_field_id > 0
-            && custom_field_has_write_access_to_project($completion_date_field_id, $project_id)) {
+            && custom_field_has_write_access_to_project($completion_date_field_id, $bug_project_id)) {
             $field_definition = custom_field_get_definition($completion_date_field_id)['name'];
 
             $pattern =
@@ -1277,9 +1372,16 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         $content = ob_get_clean();
 
-        // Fetch current bug
+        // Fetch current bug data
         $bug_id = gpc_get_int('bug_id', 0);
         $bug_project_id = bug_get_field($bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            // Continue to print the output buffer content
+            echo $content;
+            return;
+        }
         $bug_due_date = bug_get_field($bug_id, 'due_date');
 
         // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"
@@ -1566,8 +1668,16 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         $content = ob_get_clean();
 
-        // Fetch current bug
+        // Fetch current bug data
         $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
+        $bug_project_id = bug_get_field($bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            // Continue to print the output buffer content
+            echo $content;
+            return;
+        }
         $bug_due_date = bug_get_field($bug_id, 'due_date');
 
         // Reformat "Due Date" field from "Y-MM-DD HH:mm" to "Y-MM-DD"
@@ -1584,6 +1694,6 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $content
         );
 
-        $this->process_view_buffer_with_content($content);
+        $this->process_view_buffer_with_content($bug_id, $content);
     }
 }

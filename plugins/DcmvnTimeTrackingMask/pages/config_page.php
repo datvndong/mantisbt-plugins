@@ -27,6 +27,19 @@ print_manage_menu();
             <div class="widget-main no-padding">
               <div class="table-responsive">
                 <table class="table table-bordered table-condensed table-striped">
+                  <!-- Project selection field -->
+                  <tr>
+                    <th class="category" style="border-bottom: none">
+                      <?php echo plugin_lang_get('config_select_impacted_projects') ?>
+                    </th>
+                    <td>
+                      <label>
+                        <input type="text" name="impacted_project_ids" size="100" maxlength="100"
+                               value="<?php echo plugin_config_get('impacted_project_ids', ALL_PROJECTS) ?>" />
+                      </label>
+                    </td>
+                  </tr>
+                  <!-- Time tracking bypass threshold -->
                   <tr>
                     <th class="category" style="border-bottom: none">
                       <?php echo plugin_lang_get('config_bypass_threshold') ?>

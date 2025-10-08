@@ -6,6 +6,7 @@ $s_plugin_DcmvnTicketMask_ = '';
 $s_plugin_DcmvnTicketMask_plugin_title = 'DCMVN Ticket Mask';
 
 $s_plugin_DcmvnTicketMask_config_title = 'DCMVN Ticket Mask Configuration';
+$s_plugin_DcmvnTicketMask_config_select_impacted_projects = 'Select impacted projects';
 $s_plugin_DcmvnTicketMask_config_view_threshold = 'Planned resources view threshold';
 $s_plugin_DcmvnTicketMask_config_update_threshold = 'Planned resources update threshold';
 $s_plugin_DcmvnTicketMask_config_start_date_field = '"Start Date" field';

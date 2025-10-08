@@ -6,5 +6,6 @@ $s_plugin_DcmvnTimeTrackingMask_ = '';
 $s_plugin_DcmvnTimeTrackingMask_plugin_title = 'DCMVN Time Tracking Mask';
 
 $s_plugin_DcmvnTimeTrackingMask_config_title = 'DCMVN Time Tracking Mask Configuration';
+$s_plugin_DcmvnTimeTrackingMask_config_select_impacted_projects = 'Select impacted projects';
 $s_plugin_DcmvnTimeTrackingMask_config_bypass_threshold = 'Time tracking bypass threshold';
 $s_plugin_DcmvnTimeTrackingMask_config_action_update = 'Update';

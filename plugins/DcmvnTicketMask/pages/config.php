@@ -12,6 +12,10 @@ function maybe_set_option($name, $value)
     }
 }
 
+// Get and set value for impacted project IDs
+$t_impacted_project_ids = gpc_get_string('impacted_project_ids', '0');
+maybe_set_option('impacted_project_ids', $t_impacted_project_ids);
+
 // Get and set value for view threshold field
 $t_planned_resources_view_threshold = gpc_get_int('planned_resources_view_threshold', MANAGER);
 maybe_set_option('planned_resources_view_threshold', $t_planned_resources_view_threshold);
@@ -50,4 +54,4 @@ if ($t_completion_date_field_id > 0) {
 maybe_set_option('completion_date_field_id', $t_completion_date_field_id);
 
 form_security_purge('plugin_DcmvnTicketMask_config');
-print_header_redirect(plugin_page('config_page', true));
+print_successful_redirect(plugin_page('config_page', true));

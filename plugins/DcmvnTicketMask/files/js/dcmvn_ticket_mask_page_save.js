@@ -103,6 +103,9 @@ $(document).ready(function () {
         for (let i = 1; i <= 12; i++) {
             const resourceNo = String(i).padStart(2, '0');
             const idElement = $(`select#resource_${resourceNo}_id`);
+            if (idElement.length === 0) {
+                continue;
+            }
             const resourceId = Number(idElement.val()) || 0;
             const resourceName = $(`select#resource_${resourceNo}_id option:selected`).text();
             const resourceTime = computeResourceTime(resourceNo);

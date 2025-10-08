@@ -9,6 +9,7 @@ use Mantis\Exceptions\ClientException;
  */
 class DcmvnTicketHistoryMaskPlugin extends MantisPlugin
 {
+    private const CONFIG_KEY_IMPACTED_PROJECT_IDS = 'impacted_project_ids';
     private const CONFIG_KEY_PLANNED_RESOURCES_HISTORY_VIEW_THRESHOLD = 'planned_resources_history_view_threshold';
 
     /**
@@ -20,6 +21,31 @@ class DcmvnTicketHistoryMaskPlugin extends MantisPlugin
         $bug_project_id = bug_get_field($p_bug_id, 'project_id');
         $threshold_id = plugin_config_get(self::CONFIG_KEY_PLANNED_RESOURCES_HISTORY_VIEW_THRESHOLD, MANAGER);
         return access_has_project_level($threshold_id, $bug_project_id);
+    }
+
+    function is_enabled_for_project(?int $p_project_id = -1): bool
+    {
+        // Cache the parsed project IDs to avoid repeated processing
+        static $cached_project_ids = null;
+        if ($cached_project_ids === null) {
+            $impacted_project_ids = plugin_config_get(self::CONFIG_KEY_IMPACTED_PROJECT_IDS, '0');
+            if (empty($impacted_project_ids)) {
+                $cached_project_ids = [0 => true];
+            } else {
+                $project_ids = explode(',', $impacted_project_ids);
+                $sanitized_ids = array_filter(
+                    array_map('intval', array_map('trim', $project_ids)),
+                    function ($id) {
+                        return $id >= 0;
+                    }
+                );
+
+                // Flip array for O(1) lookups instead of O(n)
+                $cached_project_ids = array_flip($sanitized_ids ?: [0]);
+            }
+        }
+
+        return isset($cached_project_ids[0]) || isset($cached_project_ids[$p_project_id]);
     }
 
     public function register(): void
@@ -83,8 +109,17 @@ class DcmvnTicketHistoryMaskPlugin extends MantisPlugin
 
         $content = ob_get_clean();
 
-        // Remove secret logs from issue history tab when user has insufficient access
         $bug_id = gpc_get_int('id', gpc_get_int('bug_id', 0));
+        $bug_project_id = bug_get_field($bug_id, 'project_id');
+        // Check if the plugin is impacted
+        $is_enabled = $this->is_enabled_for_project($bug_project_id);
+        if (!$is_enabled) {
+            // Continue to print the output buffer content
+            echo $content;
+            return;
+        }
+
+        // Remove secret logs from issue history tab when user has insufficient access
         $can_view = $this->can_view_planned_resources_history($bug_id);
         if (!$can_view) {
             // Remove "Planned Resource No" logs
