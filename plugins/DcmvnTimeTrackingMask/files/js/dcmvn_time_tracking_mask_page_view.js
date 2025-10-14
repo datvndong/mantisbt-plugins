@@ -3,7 +3,7 @@ function updateTimeTrackingOptions(additionalParameters = {}) {
         page: 'DcmvnTimeTrackingMask/get_time_tracking_options',
         ...additionalParameters,
     });
-    fetch(`${window.location.origin}/plugin.php?${parameters.toString()}`)
+    fetch(`plugin.php?${parameters.toString()}`)
         .then(response => response.json())
         .then((
             {
@@ -64,7 +64,7 @@ $(document).ready(function () {
             selected_month: selectedMonth,
             selected_year: selectedYear,
         });
-        fetch(`${window.location.origin}/plugin.php?${parameters.toString()}`)
+        fetch(`plugin.php?${parameters.toString()}`)
             .then(response => response.json())
             .then(({ accepted }) => {
                 if (accepted) {
