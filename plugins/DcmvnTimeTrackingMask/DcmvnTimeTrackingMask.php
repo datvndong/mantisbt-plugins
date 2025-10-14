@@ -5,7 +5,7 @@ use Mantis\Exceptions\ClientException;
 /**
  * @noinspection PhpUnused
  * @author LinkedSoft
- * @version 1.0.0
+ * @version 1.0.1
  */
 class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
 {
@@ -54,7 +54,7 @@ class DcmvnTimeTrackingMaskPlugin extends MantisPlugin
         $this->description = 'Custom the time tracking appearance';
         $this->page = 'config_page';
 
-        $this->version = '1.0.0';
+        $this->version = '1.0.1';
         $this->requires = array(
             'MantisCore' => '2.0.0',
         );
