@@ -3,3 +3,7 @@
   color: #ffffff !important;
   font-weight: bold;
 }
+
+.no-border-bottom {
+  border-bottom: none !important;
+}

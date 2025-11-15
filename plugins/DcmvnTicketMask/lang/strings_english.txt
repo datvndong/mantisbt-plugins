@@ -15,6 +15,7 @@ $s_plugin_DcmvnTicketMask_config_select_date_field = 'Select a date field...';
 $s_plugin_DcmvnTicketMask_config_action_update = 'Update';
 $s_plugin_DcmvnTicketMask_config_no_date_fields = 'No date custom fields found. Please create a date custom field first.';
 
+$s_plugin_DcmvnTicketMask_planned_resources_title = 'Planned Resources';
 $s_plugin_DcmvnTicketMask_total_md = 'Total No. of MD\'s';
 $s_plugin_DcmvnTicketMask_total_program_days = 'Total No. of Program Days';
 $s_plugin_DcmvnTicketMask_planned_resource = 'Planned Resource No. ';

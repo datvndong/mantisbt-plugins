@@ -352,7 +352,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $this->description = 'Custom the ticket appearance';
         $this->page = 'config_page';
 
-        $this->version = '1.0.0';
+        $this->version = '1.0.1';
         $this->requires = array(
             'MantisCore' => '2.0.0',
         );
@@ -514,22 +514,24 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             $total_time += $bug_custom_data["resource_{$resource_no}_time"];
         }
 
+        // Output rows with markers for buffer processing
+        echo '<!-- PLANNED_RESOURCES_START -->';
         echo '<tr>';
         // Add "Temp Target Version" field
-        echo '<th class="temp-target-version category"></th>';
-        echo '<td class="temp-target-version"></td>';
+        echo '<th class="temp-target-version category width-15"></th>';
+        echo '<td class="temp-target-version width-20"></td>';
         // Display "Total No. of MD's" field
-        echo '<th class="bug-total-md planned-resource-category">';
+        echo '<th class="bug-total-md planned-resource-category width-15">';
         echo plugin_lang_get('total_md');
         echo '</th>';
-        echo '<td class="bug-total-md">';
+        echo '<td class="bug-total-md width-15">';
         echo sprintf("%.2f", $total_time / (7.5 * 60));
         echo '</td>';
         // Display "Total No. of Program Days" field
-        echo '<th class="bug-total-program-days planned-resource-category">';
+        echo '<th class="bug-total-program-days planned-resource-category width-15">';
         echo plugin_lang_get('total_program_days');
         echo '</th>';
-        echo '<td class="bug-total-program-days">';
+        echo '<td class="bug-total-program-days width-20">';
         echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
         echo '</td>';
         echo '</tr>';
@@ -540,12 +542,12 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             for ($j = 0; $j < 3; $j++) {
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
 
-                echo "<th class=\"bug-planned-resource-$resource_no planned-resource-category\" " .
+                echo "<th class=\"bug-planned-resource-$resource_no planned-resource-category width-15\" " .
                     'rowspan="2" style="vertical-align: middle">';
                 echo plugin_lang_get('planned_resource') . $resource_no;
                 echo '</th>';
 
-                echo "<td class=\"bug-planned-resource-$resource_no\">";
+                echo "<td class=\"bug-planned-resource-$resource_no width-18\">";
                 print_user_with_subject($bug_custom_data["resource_{$resource_no}_id"], $p_bug_id);
                 echo '&nbsp;</td>';
             }
@@ -556,7 +558,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $resource_no = sprintf('%02d', ($i * 3 + $j + 1));
                 $resource_time = $bug_custom_data["resource_{$resource_no}_time"];
 
-                echo "<td class=\"bug-planned-resource-$resource_no\">";
+                echo "<td class=\"bug-planned-resource-$resource_no width-18\">";
                 echo string_display_line(db_minutes_to_hhmm($resource_time));
                 echo '</td>';
             }
@@ -565,25 +567,26 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         echo '<tr>';
         // Display "Total Planned Hours" field
-        echo '<th class="bug-total-planned-hours planned-resource-category">';
+        echo '<th class="bug-total-planned-hours planned-resource-category width-15 no-border-bottom">';
         echo plugin_lang_get('total_planned_hours');
         echo '</th>';
-        echo '<td class="bug-total-planned-hours">';
+        echo '<td class="bug-total-planned-hours width-20">';
         echo db_minutes_to_hhmm($total_time);
         echo '</td>';
         // Display "Estimation Approval" field
-        echo '<th class="bug-estimation-approval planned-resource-category">';
+        echo '<th class="bug-estimation-approval planned-resource-category width-15 no-border-bottom">';
         echo plugin_lang_get('estimation_approval');
         echo '</th>';
-        echo '<td class="bug-estimation-approval">';
+        echo '<td class="bug-estimation-approval width-15">';
         print_user_with_subject($bug_custom_data['approval_id'], $p_bug_id);
         echo '</td>';
         // Display "Actual vs Planned Hours" field
-        echo '<th class="bug-actual-vs-planned-hours planned-resource-category">';
+        echo '<th class="bug-actual-vs-planned-hours planned-resource-category width-15 no-border-bottom">';
         echo plugin_lang_get('actual_vs_planned_hours');
         echo '</th>';
-        echo '<td class="bug-actual-vs-planned-hours"></td>';
+        echo '<td class="bug-actual-vs-planned-hours width-20"></td>';
         echo '</tr>';
+        echo '<!-- PLANNED_RESOURCES_END -->';
     }
 
     /**
@@ -1134,6 +1137,41 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             '$1',
             $content
         );
+
+        // Extract planned resources section and wrap in collapsible section within the same table
+        $pattern = '/<!-- PLANNED_RESOURCES_START -->(.*?)<!-- PLANNED_RESOURCES_END -->/s';
+        if (preg_match($pattern, $content, $matches)) {
+            $planned_resources_rows = $matches[1];
+
+            // Build collapsible section using a spacer row with embedded widget
+            $t_collapse_block = is_collapsed('planned_resources');
+            $t_block_css = $t_collapse_block ? 'collapsed' : '';
+            $t_block_icon = $t_collapse_block ? 'fa-chevron-down' : 'fa-chevron-up';
+
+            // Replace the marked section with the collapsible section
+            $content = preg_replace(
+                $pattern,
+                '<tr class="spacer"><td colspan="6"></td></tr>' .
+                '<tr><td colspan="6" class="no-padding">' .
+                "<div id=\"planned_resources\" class=\"widget-box widget-color-blue2 no-margin no-border $t_block_css\">" .
+                '<div class="widget-header widget-header-small">' .
+                '<h4 class="widget-title lighter">' .
+                icon_get('fa-users', 'ace-icon') .
+                plugin_lang_get('planned_resources_title') .
+                '</h4>' .
+                '<div class="widget-toolbar">' .
+                '<a data-action="collapse" href="#">' .
+                icon_get($t_block_icon, '1 ace-icon bigger-125') .
+                '</a></div></div>' .
+                '<div class="widget-body"><div class="widget-main no-padding">' .
+                '<div class="table-responsive">' .
+                '<table class="table table-bordered table-condensed"><tbody>' .
+                $planned_resources_rows .
+                '</tbody></table></div></div></div></div>' .
+                '</td></tr>',
+                $content
+            );
+        }
 
         // Continue to print the output buffer content
         echo $content;
