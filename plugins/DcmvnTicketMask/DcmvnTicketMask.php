@@ -1,5 +1,103 @@
 <?php
 
+/**
+ * Update function for schema version 3
+ * Populates calculated fields for existing records
+ * @return bool
+ */
+function install_update_calculated_fields(): bool // version 1.0.2 (schema 3)
+{
+    /** @var DcmvnTicketMaskPlugin $t_plugin */
+    $t_plugin = plugin_register('DcmvnTicketMask', true);
+    if (!$t_plugin) {
+        return false;
+    }
+
+    $table_name = $t_plugin->table_custom_field();
+
+    if (!db_table_exists($table_name) || !db_is_connected()) {
+        return false;
+    }
+
+    // Fetch count of existing records to process with PHP logic in batches
+    $count_query = "SELECT COUNT(*) FROM {$table_name}";
+    $total_count = (int)db_result(db_query($count_query));
+
+    error_log(sprintf("Starting migration: %d records to process", $total_count));
+
+    $batch_size = 500;
+    $processed = 0;
+    $errors = 0;
+
+    for ($offset = 0; $offset < $total_count; $offset += $batch_size) {
+        // Include LIMIT and OFFSET directly in the SQL query
+        $query = "SELECT * FROM {$table_name} ORDER BY bug_id";
+        $result = db_query($query, array(), $batch_size, $offset);
+
+        while ($row = db_fetch_array($result)) {
+            $bug_id = (int)$row['bug_id'];
+
+            // Skip if bug doesn't exist anymore
+            if (!bug_exists($bug_id)) {
+                error_log(sprintf("Skipping bug_id %d - bug no longer exists", $bug_id));
+                continue;
+            }
+
+            try {
+                // Calculate calculated fields
+                $calculated_fields = $t_plugin->get_calculated_fields($bug_id, $row);
+                $total_planned_hours = $calculated_fields['total_planned_hours'];
+                $total_md = $calculated_fields['total_md'];
+                $total_program_days = $calculated_fields['total_program_days'];
+                $actual_vs_planned_hours = $calculated_fields['actual_vs_planned_hours'];
+
+                // Update the record with calculated values
+                $update_query = "UPDATE {$table_name}
+                                 SET total_planned_hours = " . db_param() . ",
+                                     total_md = " . db_param() . ",
+                                     total_program_days = " . db_param() . ",
+                                     actual_vs_planned_hours = " . db_param() . "
+                                 WHERE bug_id = " . db_param();
+
+                error_log(sprintf(
+                    "Updating bug_id %d: planned_hours=%s, md=%s, program_days=%s, actual_vs_planned=%s",
+                    $bug_id,
+                    var_export($total_planned_hours, true),
+                    var_export($total_md, true),
+                    var_export($total_program_days, true),
+                    var_export($actual_vs_planned_hours, true)
+                ));
+
+                $update_result = db_query($update_query, array(
+                    $total_planned_hours,
+                    $total_md,
+                    $total_program_days,
+                    $actual_vs_planned_hours,
+                    $bug_id
+                ));
+
+                if ($update_result === false) {
+                    error_log(sprintf("ERROR: Update failed for bug_id %d", $bug_id));
+                    $errors++;
+                } else {
+                    $processed++;
+                }
+            } catch (Exception $e) {
+                error_log(sprintf("EXCEPTION for bug_id %d: %s", $bug_id, $e->getMessage()));
+                error_log(sprintf("Stack trace: %s", $e->getTraceAsString()));
+                $errors++;
+            }
+        }
+
+        error_log(sprintf("Batch complete: offset %d, processed %d records, %d errors", $offset, $processed, $errors));
+    }
+
+    error_log(sprintf("Migration complete: %d processed, %d errors", $processed, $errors));
+
+    // Return false if there were errors
+    return $errors === 0;
+}
+
 use Mantis\Exceptions\ClientException;
 
 /**
@@ -15,32 +113,94 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     private const CONFIG_KEY_PLANNED_RESOURCES_UPDATE_THRESHOLD = 'planned_resources_update_threshold';
     private const CONFIG_KEY_START_DATE_FIELD = 'start_date_field_id';
     private const CONFIG_KEY_COMPLETION_DATE_FIELD = 'completion_date_field_id';
+    private const MINUTES_PER_MAN_DAY = 450; // 7.5 hours * 60 minutes
+    private $table_custom_field = null;
 
     /**
+     * Recalculate and update calculated fields for a specific bug
+     * Useful when time tracking data changes outside of ticket mask form
+     * @param int $p_bug_id
+     * @throws ClientException
+     */
+    private function update_bug_actual_time(int $p_bug_id): void
+    {
+        if ($p_bug_id <= 0) {
+            return;
+        }
+
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+        if (!$this->is_enabled_for_project($bug_project_id)) {
+            return;
+        }
+
+        $existing_data = $this->get_custom_data($p_bug_id);
+        if ($existing_data['bug_id'] === null) {
+            return;
+        }
+
+        $calculated_fields = $this->get_calculated_fields($p_bug_id, $existing_data);
+
+        $table_name = $this->table_custom_field();
+        $query = "UPDATE $table_name
+                  SET total_planned_hours = " . db_param() . ",
+                      total_md = " . db_param() . ",
+                      total_program_days = " . db_param() . ",
+                      actual_vs_planned_hours = " . db_param() . ",
+                      updated_at = " . db_param() . ",
+                      updated_by = " . db_param() . "
+                  WHERE bug_id = " . db_param();
+
+        db_query($query, array(
+            $calculated_fields['total_planned_hours'],
+            $calculated_fields['total_md'],
+            $calculated_fields['total_program_days'],
+            $calculated_fields['actual_vs_planned_hours'],
+            db_now(),
+            auth_get_current_user_id(),
+            $p_bug_id
+        ));
+    }
+
+    /**
+     * @SuppressWarnings("php:S100")
      * @param string $p_format
-     * @param string|null $p_timestamp
+     * @param string $p_timestamp
      * @return string
      */
-    private function format_date(string $p_format, ?string $p_timestamp = ''): string
+    private function format_date(string $p_format, string $p_timestamp = ''): string
     {
         return !is_string($p_timestamp) || empty($p_timestamp) ? '' : date($p_format, $p_timestamp);
     }
 
     /**
-     * @param int|null $p_user_id
+     * @SuppressWarnings("php:S100")
+     * @param int $p_user_id
      * @return string
      */
-    private function user_get_name(?int $p_user_id = NO_USER): string
+    private function user_get_name(int $p_user_id = NO_USER): string
     {
         return NO_USER == $p_user_id ? '' : user_get_name($p_user_id);
     }
 
     /**
-     * @param int|null $p_bug_id
-     * @param bool|null $p_is_logging_required
+     * Get the custom field table name (memoized)
+     * @return string
+     */
+    public function table_custom_field(): string
+    {
+        if ($this->table_custom_field === null) {
+            $this->table_custom_field = plugin_table(self::CUSTOM_FIELD_TABLE_NAME, 'DcmvnTicketMask');
+        }
+        return $this->table_custom_field;
+    }
+
+    /**
+     * @SuppressWarnings("php:S100")
+     * @param int $p_bug_id
+     * @param bool $p_is_logging_required
      * @throws ClientException
      */
-    private function save_custom_data(?int $p_bug_id = 0, ?bool $p_is_logging_required = false): void
+    private function save_custom_data(int $p_bug_id = 0, bool $p_is_logging_required = false): void
     {
         $bug_project_id = bug_get_field($p_bug_id, 'project_id');
         // Check if the plugin is impacted
@@ -54,7 +214,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             return;
         }
 
-        $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
+        $table_name = $this->table_custom_field();
 
         // Check if record exists
         $existing_data = $this->get_custom_data($p_bug_id);
@@ -77,9 +237,28 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
         $approval_id = gpc_get_int('approval_id', 0);
         $updated_data['approval_id'] = $approval_id;
+
+        // Calculate calculated fields
+        $calculated_fields = $this->get_calculated_fields($p_bug_id, $updated_data);
+        $updated_data = array_merge($updated_data, $calculated_fields);
+
+        $total_planned_hours = $updated_data['total_planned_hours'];
+        $total_md = $updated_data['total_md'];
+        $total_program_days = $updated_data['total_program_days'];
+        $actual_vs_planned_hours = $updated_data['actual_vs_planned_hours'];
+
         $current_time = db_now();
         $current_user_id = auth_get_current_user_id();
-        array_push($db_params, $approval_id, $current_time, $current_user_id);
+        array_push(
+            $db_params,
+            $approval_id,
+            $total_planned_hours,
+            $total_md,
+            $total_program_days,
+            $actual_vs_planned_hours,
+            $current_time,
+            $current_user_id
+        );
 
         if ($existing_data['bug_id'] === null) {
             if ($p_bug_id < 1) {
@@ -89,103 +268,52 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             array_push($db_params, $current_time, $current_user_id, $p_bug_id);
 
             // Insert new record
-            $query = "INSERT INTO $table_name (
-                        resource_01_id,
-                        resource_01_time,
-                        resource_02_id,
-                        resource_02_time,
-                        resource_03_id,
-                        resource_03_time,
-                        resource_04_id,
-                        resource_04_time,
-                        resource_05_id,
-                        resource_05_time,
-                        resource_06_id,
-                        resource_06_time,
-                        resource_07_id,
-                        resource_07_time,
-                        resource_08_id,
-                        resource_08_time,
-                        resource_09_id,
-                        resource_09_time,
-                        resource_10_id,
-                        resource_10_time,
-                        resource_11_id,
-                        resource_11_time,
-                        resource_12_id,
-                        resource_12_time,
-                        approval_id,
-                        created_at,
-                        created_by,
-                        updated_at,
-                        updated_by,
-                        bug_id
-                     )
-                     VALUES (
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . ",
-                        " . db_param() . "
-                     )";
+            $t_fields = array();
+            for ($i = 1; $i <= 12; $i++) {
+                $t_fields[] = sprintf('resource_%02d_id', $i);
+                $t_fields[] = sprintf('resource_%02d_time', $i);
+            }
+            $t_fields = array_merge($t_fields, array(
+                'approval_id',
+                'total_planned_hours',
+                'total_md',
+                'total_program_days',
+                'actual_vs_planned_hours',
+                'created_at',
+                'created_by',
+                'updated_at',
+                'updated_by',
+                'bug_id'
+            ));
+
+            $query = "INSERT INTO $table_name (" . implode(', ', $t_fields) . ")
+                      VALUES (" . implode(', ', array_fill(0, count($t_fields), db_param())) . ")";
         } else {
             $db_params[] = $p_bug_id;
 
             // Update existing record
-            $query = "UPDATE {$table_name}
-                      SET resource_01_id = " . db_param() . ",
-                          resource_01_time = " . db_param() . ",
-                          resource_02_id = " . db_param() . ",
-                          resource_02_time = " . db_param() . ",
-                          resource_03_id = " . db_param() . ",
-                          resource_03_time = " . db_param() . ",
-                          resource_04_id = " . db_param() . ",
-                          resource_04_time = " . db_param() . ",
-                          resource_05_id = " . db_param() . ",
-                          resource_05_time = " . db_param() . ",
-                          resource_06_id = " . db_param() . ",
-                          resource_06_time = " . db_param() . ",
-                          resource_07_id = " . db_param() . ",
-                          resource_07_time = " . db_param() . ",
-                          resource_08_id = " . db_param() . ",
-                          resource_08_time = " . db_param() . ",
-                          resource_09_id = " . db_param() . ",
-                          resource_09_time = " . db_param() . ",
-                          resource_10_id = " . db_param() . ",
-                          resource_10_time = " . db_param() . ",
-                          resource_11_id = " . db_param() . ",
-                          resource_11_time = " . db_param() . ",
-                          resource_12_id = " . db_param() . ",
-                          resource_12_time = " . db_param() . ",
-                          approval_id = " . db_param() . ",
-                          updated_at = " . db_param() . ",
-                          updated_by = " . db_param() . "
-                      WHERE bug_id = " . db_param();
+            $t_set_fields = array();
+            for ($i = 1; $i <= 12; $i++) {
+                $t_set_fields[] = sprintf('resource_%02d_id = %s', $i, db_param());
+                $t_set_fields[] = sprintf('resource_%02d_time = %s', $i, db_param());
+            }
+            $t_other_fields = array(
+                'approval_id',
+                'total_planned_hours',
+                'total_md',
+                'total_program_days',
+                'actual_vs_planned_hours',
+                'updated_at',
+                'updated_by'
+            );
+            foreach ($t_other_fields as $t_field) {
+                $t_set_fields[] = "$t_field = " . db_param();
+            }
+
+            // Update existing record
+            $query = "UPDATE $table_name
+                      SET " . implode(', ', $t_set_fields) . '
+                      WHERE bug_id = ' . db_param();
         }
         db_query($query, $db_params);
 
@@ -214,15 +342,46 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                 $this->user_get_name($existing_data['approval_id']),
                 $this->user_get_name($updated_data['approval_id'])
             );
+            // Log calculated fields
+            history_log_event_direct(
+                $p_bug_id,
+                plugin_lang_get('total_planned_hours'),
+                db_minutes_to_hhmm($existing_data['total_planned_hours']),
+                db_minutes_to_hhmm($updated_data['total_planned_hours'])
+            );
+            history_log_event_direct(
+                $p_bug_id,
+                plugin_lang_get('total_md'),
+                $existing_data['total_md'],
+                $updated_data['total_md']
+            );
+            history_log_event_direct(
+                $p_bug_id,
+                plugin_lang_get('total_program_days'),
+                $existing_data['total_program_days'],
+                $updated_data['total_program_days']
+            );
+            // Log actual vs planned hours (difference in minutes)
+            $t_existing_actual_vs_planned = (int)$existing_data['actual_vs_planned_hours'];
+            $t_updated_actual_vs_planned = (int)$updated_data['actual_vs_planned_hours'];
+            $t_existing_hhmm = ($t_existing_actual_vs_planned < 0 ? '-' : '') . db_minutes_to_hhmm(abs($t_existing_actual_vs_planned));
+            $t_updated_hhmm = ($t_updated_actual_vs_planned < 0 ? '-' : '') . db_minutes_to_hhmm(abs($t_updated_actual_vs_planned));
+            history_log_event_direct(
+                $p_bug_id,
+                plugin_lang_get('actual_vs_planned_hours'),
+                $t_existing_hhmm,
+                $t_updated_hhmm
+            );
         }
     }
 
     /**
-     * @param int|null $p_start_date
-     * @param int|null $p_end_date
+     * @SuppressWarnings("php:S100")
+     * @param int $p_start_date
+     * @param int $p_end_date
      * @return int
      */
-    private function count_program_days(?int $p_start_date = 0, ?int $p_end_date = 0): int
+    private function count_program_days(int $p_start_date = 0, int $p_end_date = 0): int
     {
         if ($p_start_date <= 1 || $p_end_date <= 1) {
             return 0;
@@ -247,21 +406,83 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
-     * @param string|null $input
-     * @return int
+     * @SuppressWarnings("php:S100")
+     * @param int $p_bug_id
+     * @param array $p_resource_data
+     * @return array
+     * @throws ClientException
      */
-    private function string_to_int(?string $input = ''): int
+    public function get_calculated_fields(int $p_bug_id, array $p_resource_data): array
     {
-        return is_string($input) && is_numeric($input) ? intval($input) : -1;
+        $bug_project_id = bug_get_field($p_bug_id, 'project_id');
+
+        // 1. Calculate total planned hours (sum of all resource times in minutes)
+        $total_planned_hours = 0;
+        for ($i = 1; $i <= 12; $i++) {
+            $resource_no = sprintf('%02d', $i);
+            $total_planned_hours += (int)($p_resource_data["resource_{$resource_no}_time"] ?? 0);
+        }
+
+        // 2. Calculate total MD (Man Days)
+        $total_md = $total_planned_hours > 0 ? round($total_planned_hours / self::MINUTES_PER_MAN_DAY, 2) : 0;
+
+        // 3. Calculate total program days (weekdays between start date and due date)
+        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
+        $bug_start_date = 0;
+        if (
+            $p_bug_id > 0 &&
+            $start_date_field_id > 0 &&
+            custom_field_is_linked($start_date_field_id, $bug_project_id)
+        ) {
+            $start_date_value = custom_field_get_value($start_date_field_id, $p_bug_id);
+            // Custom field date values are stored as timestamps
+            $bug_start_date = is_numeric($start_date_value) ? intval($start_date_value) : 0;
+        }
+        $due_date = $p_bug_id > 0 ? bug_get_field($p_bug_id, 'due_date') : 0;
+        $total_program_days = $this->count_program_days($bug_start_date, $due_date);
+
+        // 4. Calculate actual vs planned hours (difference in minutes)
+        $actual_vs_planned_hours = 0;
+        if ($p_bug_id > 0) {
+            $t_table = plugin_table('data', 'TimeTracking');
+            $t_query_pull_hours = "SELECT SUM(hours) as hours FROM $t_table WHERE bug_id = " . $p_bug_id;
+            $t_result_pull_hours = db_query($t_query_pull_hours);
+            $actual_time = (int)round((double)db_result($t_result_pull_hours) * 60); // hours to minutes
+            $actual_vs_planned_hours = $actual_time - $total_planned_hours;
+        }
+
+        return array(
+            'total_planned_hours' => $total_planned_hours,
+            'total_md' => $total_md,
+            'total_program_days' => $total_program_days,
+            'actual_vs_planned_hours' => $actual_vs_planned_hours
+        );
     }
 
     /**
+     * Get colors for actual vs planned hours
+     * @param int $p_actual_vs_planned The difference in minutes
+     * @return array Array with 'bg' and 'text' colors
+     */
+    public function get_color_for_actual_vs_planned(int $p_actual_vs_planned): array
+    {
+        $bg_color = $p_actual_vs_planned > 0 ? '#ff0000' : '#d2f5b0';
+        $text_color = $p_actual_vs_planned > 0 ? '#ffffff' : '#000000';
+
+        return array(
+            'bg' => $bg_color,
+            'text' => $text_color
+        );
+    }
+
+    /**
+     * @SuppressWarnings("php:S100")
      * @param int|null $p_bug_id
      * @return array
      */
-    private function get_custom_data(?int $p_bug_id = 0): array
+    public function get_custom_data(?int $p_bug_id = 0): array
     {
-        $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
+        $table_name = $this->table_custom_field();
         $query = "SELECT * FROM $table_name WHERE bug_id = " . db_param();
         $result_set = db_query($query, array($p_bug_id));
 
@@ -296,6 +517,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             'resource_12_id' => 0,
             'resource_12_time' => 0,
             'approval_id' => 0,
+            'total_planned_hours' => 0,
+            'total_md' => 0,
+            'total_program_days' => 0,
+            'actual_vs_planned_hours' => 0,
             'created_at' => 1,
             'created_by' => 0,
             'updated_at' => 1,
@@ -304,6 +529,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @SuppressWarnings("php:S100")
      * @throws ClientException
      */
     private function can_update_planned_resources(?int $p_bug_id = 0, ?int $p_project_id = null): bool
@@ -314,15 +540,52 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         return access_has_project_level($threshold_id, $bug_project_id);
     }
 
-    private function can_view_planned_resources(?int $p_project_id = 0): bool
+    /**
+     * @SuppressWarnings("php:S100")
+     */
+    public function can_view_planned_resources(?int $p_project_id = 0): bool
     {
         // Validate user has sufficient access level
         $threshold_id = plugin_config_get(self::CONFIG_KEY_PLANNED_RESOURCES_VIEW_THRESHOLD, MANAGER);
         return access_has_project_level($threshold_id, $p_project_id);
     }
 
-    function is_enabled_for_project(?int $p_project_id = -1): bool
+    /**
+     * Check if the current user is authorized to use the plugin (must have @dcmvn.com email)
+     * @return bool
+     * @throws ClientException
+     */
+    private function is_user_authorized(): bool
     {
+        static $t_authorized = null;
+        if ($t_authorized !== null) {
+            return $t_authorized;
+        }
+
+        if (!auth_is_user_authenticated()) {
+            $t_authorized = false;
+        } elseif (access_has_global_level(ADMINISTRATOR)) {
+            $t_authorized = true;
+        } else {
+            $t_user_id = auth_get_current_user_id();
+            $t_email = user_get_email($t_user_id);
+
+            // Check if email ends with @dcmvn.com (case-insensitive)
+            $t_authorized = (bool)preg_match('/@dcmvn\.com$/i', $t_email);
+        }
+
+        return $t_authorized;
+    }
+
+    /**
+     * @SuppressWarnings("php:S100")
+     * @throws ClientException
+     */
+    public function is_enabled_for_project(?int $p_project_id = -1): bool
+    {
+        if (!$this->is_user_authorized()) {
+            return false;
+        }
         // Cache the parsed project IDs to avoid repeated processing
         static $cached_project_ids = null;
         if ($cached_project_ids === null) {
@@ -352,7 +615,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         $this->description = 'Custom the ticket appearance';
         $this->page = 'config_page';
 
-        $this->version = '1.0.1';
+        $this->version = '1.2.0';
         $this->requires = array(
             'MantisCore' => '2.0.0',
         );
@@ -384,6 +647,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             'EVENT_UPDATE_BUG_DATA' => 'process_due_date_before_update',
             'EVENT_UPDATE_BUG' => 'process_custom_field_on_update',
             'EVENT_BUG_DELETED' => 'process_custom_field_on_delete',
+            'EVENT_FILTER_COLUMNS' => 'register_columns',
+            'EVENT_FILTER_FIELDS' => 'register_filters',
+            'EVENT_BUGNOTE_ADD' => 'process_on_bugnote_change',
+            'EVENT_BUGNOTE_EDIT' => 'process_on_bugnote_change',
+            'EVENT_BUGNOTE_DELETED' => 'process_on_bugnote_change',
         );
 
         $current_page = basename($_SERVER['SCRIPT_NAME']);
@@ -415,10 +683,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     public function schema(): array
     {
         return array(
-            array(
+            // Schema version 0: Initial table creation (v1.0.0)
+            0 => array(
                 'CreateTableSQL',
                 array(
-                    plugin_table(self::CUSTOM_FIELD_TABLE_NAME),
+                    $this->table_custom_field(),
                     '
                     bug_id                INT(10) UNSIGNED NOTNULL PRIMARY,
                     resource_01_id        INT(10) UNSIGNED NOTNULL DEFAULT 0,
@@ -454,19 +723,36 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
                     array('mysql' => 'DEFAULT CHARSET=utf8')
                 )
             ),
-            array(
+            // Schema version 1: Create table index (v1.0.0)
+            1 => array(
                 'CreateIndexSQL',
                 array(
                     'idx_bug_id',
-                    plugin_table(self::CUSTOM_FIELD_TABLE_NAME),
+                    $this->table_custom_field(),
                     'bug_id'
                 )
-            )
+            ),
+            // Schema version 2: Add calculated fields columns and populate data (v1.2.0)
+            2 => array(
+                'AddColumnSQL',
+                array(
+                    $this->table_custom_field(),
+                    '
+                    total_planned_hours          INT(10) UNSIGNED NOTNULL DEFAULT 0,
+                    total_md                     N(10.2) UNSIGNED NOTNULL DEFAULT 0,
+                    total_program_days           INT(10)          NOTNULL DEFAULT 0,
+                    actual_vs_planned_hours      N(10.2)          NOTNULL DEFAULT 0
+                    '
+                )
+            ),
+            // Schema version 3: Populate calculated fields (v1.2.0)
+            3 => array('UpdateFunction', 'update_calculated_fields')
         );
     }
 
     /**
      * @noinspection PhpUnused
+     * @throws ClientException
      */
     public function include_ccs_file(): void
     {
@@ -478,7 +764,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             'bug_change_status_page.php'
         ];
         $current_page = basename($_SERVER['SCRIPT_NAME']);
-        if (in_array($current_page, $affected_pages)) {
+        if (in_array($current_page, $affected_pages) && $this->is_user_authorized()) {
             echo '<link rel="stylesheet" type="text/css" href="' . plugin_file('css/DcmvnTicketMask.css') . '" />';
         }
     }
@@ -502,17 +788,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             return;
         }
 
-        $bug_custom_data = $this->get_custom_data($p_bug_id);
-        $bug_due_date = bug_get_field($p_bug_id, 'due_date');
-        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
-        $bug_start_date = custom_field_get_value($start_date_field_id, $p_bug_id);
+        // Automatically sync calculated fields if they are out of date (e.g. after TimeTracking plugin updates)
+        $this->update_bug_actual_time($p_bug_id);
 
-        // Calculate total planned hours
-        $total_time = 0;
-        for ($i = 1; $i <= 12; $i++) {
-            $resource_no = sprintf('%02d', $i);
-            $total_time += $bug_custom_data["resource_{$resource_no}_time"];
-        }
+        $bug_custom_data = $this->get_custom_data($p_bug_id);
 
         // Output rows with markers for buffer processing
         echo '<!-- PLANNED_RESOURCES_START -->';
@@ -525,14 +804,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('total_md');
         echo '</th>';
         echo '<td class="bug-total-md width-15">';
-        echo sprintf("%.2f", $total_time / (7.5 * 60));
+        echo $bug_custom_data['total_md'];
         echo '</td>';
         // Display "Total No. of Program Days" field
         echo '<th class="bug-total-program-days planned-resource-category width-15">';
         echo plugin_lang_get('total_program_days');
         echo '</th>';
         echo '<td class="bug-total-program-days width-20">';
-        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
+        echo $bug_custom_data['total_program_days'];
         echo '</td>';
         echo '</tr>';
 
@@ -571,7 +850,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('total_planned_hours');
         echo '</th>';
         echo '<td class="bug-total-planned-hours width-20">';
-        echo db_minutes_to_hhmm($total_time);
+        echo db_minutes_to_hhmm($bug_custom_data['total_planned_hours']);
         echo '</td>';
         // Display "Estimation Approval" field
         echo '<th class="bug-estimation-approval planned-resource-category width-15 no-border-bottom">';
@@ -584,7 +863,11 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo '<th class="bug-actual-vs-planned-hours planned-resource-category width-15 no-border-bottom">';
         echo plugin_lang_get('actual_vs_planned_hours');
         echo '</th>';
-        echo '<td class="bug-actual-vs-planned-hours width-20"></td>';
+        $t_actual_vs_planned = (int)$bug_custom_data['actual_vs_planned_hours'];
+        $colors = $this->get_color_for_actual_vs_planned($t_actual_vs_planned);
+        echo '<td class="bug-actual-vs-planned-hours width-20" style="background-color: ' . $colors['bg'] . '; color: ' . $colors['text'] . ';">';
+        echo ($t_actual_vs_planned < 0 ? '-' : '') . db_minutes_to_hhmm(abs($t_actual_vs_planned));
+        echo '</td>';
         echo '</tr>';
         echo '<!-- PLANNED_RESOURCES_END -->';
     }
@@ -750,16 +1033,9 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
 
         $bug_custom_data = $this->get_custom_data($p_bug_id);
-        $bug_due_date = bug_get_field($p_bug_id, 'due_date');
-        $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
-        $bug_start_date = custom_field_get_value($start_date_field_id, $p_bug_id);
 
-        // Calculate total planned hours
-        $total_time = 0;
-        for ($i = 1; $i <= 12; $i++) {
-            $resource_no = sprintf('%02d', $i);
-            $total_time += $bug_custom_data["resource_{$resource_no}_time"];
-        }
+        // Calculate calculated fields
+        $calculated_fields = $this->get_calculated_fields($p_bug_id, $bug_custom_data);
 
         echo '<tr>';
         // Add "Temp Target Version" field
@@ -770,14 +1046,14 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('total_md');
         echo '</label></th>';
         echo '<td id="total_md">';
-        echo sprintf("%.2f", $total_time / (7.5 * 60));
+        echo $calculated_fields['total_md'];
         echo '</td>';
         // Add "Total No. of Program Days" field
         echo '<th class="planned-resource-category"><label for="total_program_days">';
         echo plugin_lang_get('total_program_days');
         echo '</label></th>';
         echo '<td id="total_program_days">';
-        echo $this->count_program_days($this->string_to_int($bug_start_date), $this->string_to_int($bug_due_date));
+        echo $calculated_fields['total_program_days'];
         echo '</td>';
         echo '</tr>';
 
@@ -828,7 +1104,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         echo plugin_lang_get('total_planned_hours');
         echo '</label></th>';
         echo '<td id="total_planned_hours">';
-        echo db_minutes_to_hhmm($total_time);
+        echo db_minutes_to_hhmm($calculated_fields['total_planned_hours']);
         echo '</td>';
         // Add "Estimation Approval" field
         echo '<th class="planned-resource-category"><label for="approval_id">';
@@ -866,8 +1142,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
         }
 
         $update_type = gpc_get_string('action_type', BUG_UPDATE_TYPE_NORMAL);
-        if (in_array($update_type, [BUG_UPDATE_TYPE_NORMAL, BUG_UPDATE_TYPE_CHANGE_STATUS])
-            && $p_updated_bug->due_date > 1) {
+        if (
+            in_array($update_type, [BUG_UPDATE_TYPE_NORMAL, BUG_UPDATE_TYPE_CHANGE_STATUS])
+            && $p_updated_bug->due_date > 1
+        ) {
             $p_updated_bug->due_date += 86399; // Normalize the due date to the end of the day
         }
         return $p_updated_bug;
@@ -905,9 +1183,59 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
             return;
         }
 
-        $table_name = plugin_table(self::CUSTOM_FIELD_TABLE_NAME);
+        $table_name = $this->table_custom_field();
         $query = "DELETE FROM $table_name WHERE bug_id = " . db_param();
         db_query($query, array($p_bug_id));
+    }
+
+    /**
+     * Register custom columns for the view issues page
+     * @noinspection PhpUnused
+     */
+    public function register_columns(): array
+    {
+        require_once 'classes' . DIRECTORY_SEPARATOR . 'DcmvnTicketMaskColumn.class.1.2.0.php';
+
+        $columns = array();
+        for ($i = 1; $i <= 12; $i++) {
+            $resource_no = sprintf('%02d', $i);
+            $columns[] = "DcmvnTicketMaskResource{$resource_no}IdColumn";
+            $columns[] = "DcmvnTicketMaskResource{$resource_no}TimeColumn";
+        }
+
+        $columns[] = 'DcmvnTicketMaskTotalPlannedHoursColumn';
+        $columns[] = 'DcmvnTicketMaskTotalMDColumn';
+        $columns[] = 'DcmvnTicketMaskTotalProgramDaysColumn';
+        $columns[] = 'DcmvnTicketMaskActualVsPlannedHoursColumn';
+
+        return $columns;
+    }
+
+    /**
+     * Register custom filters for the view issues page
+     * @noinspection PhpUnused
+     */
+    public function register_filters(): array
+    {
+        require_once 'classes' . DIRECTORY_SEPARATOR . 'DcmvnTicketMaskFilter.class.1.2.0.php';
+
+        return array(
+            'DcmvnTicketMaskPlannedResourceFilter'
+        );
+    }
+
+    /**
+     * Synchronize actual hours when a bugnote is added, updated, or deleted.
+     * @noinspection PhpUnused
+     * @noinspection PhpUnusedParameterInspection
+     * @param $p_event
+     * @param $p_bug_id
+     * @param $p_bugnote_id
+     * @throws ClientException
+     */
+    public function process_on_bugnote_change($p_event, $p_bug_id, $p_bugnote_id): void
+    {
+        $this->update_bug_actual_time($p_bug_id);
     }
 
     /**
@@ -929,6 +1257,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @SuppressWarnings("php:S100")
      * @param $p_bug_id
      * @param $p_content
      * @throws ClientException
@@ -1178,10 +1507,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Add custom script file
         echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_utilities.js') . '"></script>';
-        echo '<script src="' . plugin_file('js/dcmvn_ticket_mask_page_view.js') . '"></script>';
     }
 
     /**
+     * @SuppressWarnings("php:S100")
      * @noinspection PhpUnused
      */
     public function process_bug_report_page_buffer(): void
@@ -1266,8 +1595,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Move "Start Date" field to the correct position
         $start_date_field_id = plugin_config_get(self::CONFIG_KEY_START_DATE_FIELD, 0);
-        if ($start_date_field_id > 0
-            && custom_field_has_write_access_to_project($start_date_field_id, $bug_project_id)) {
+        if (
+            $start_date_field_id > 0
+            && custom_field_has_write_access_to_project($start_date_field_id, $bug_project_id)
+        ) {
             $field_definition = custom_field_get_definition($start_date_field_id)['name'];
 
             $pattern =
@@ -1319,8 +1650,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Move "Client Completion Date" field to the correct position
         $completion_date_field_id = plugin_config_get(self::CONFIG_KEY_COMPLETION_DATE_FIELD, 0);
-        if ($completion_date_field_id > 0
-            && custom_field_has_write_access_to_project($completion_date_field_id, $bug_project_id)) {
+        if (
+            $completion_date_field_id > 0
+            && custom_field_has_write_access_to_project($completion_date_field_id, $bug_project_id)
+        ) {
             $field_definition = custom_field_get_definition($completion_date_field_id)['name'];
 
             $pattern =
@@ -1399,6 +1732,7 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
     }
 
     /**
+     * @SuppressWarnings("php:S100")
      * @noinspection PhpUnused
      * @throws ClientException
      */
@@ -1552,8 +1886,10 @@ class DcmvnTicketMaskPlugin extends MantisPlugin
 
         // Move "Client Completion Date" field to the correct position
         $completion_date_field_id = plugin_config_get(self::CONFIG_KEY_COMPLETION_DATE_FIELD, 0);
-        if ($completion_date_field_id > 0
-            && custom_field_has_write_access($completion_date_field_id, $bug_id)) {
+        if (
+            $completion_date_field_id > 0
+            && custom_field_has_write_access($completion_date_field_id, $bug_id)
+        ) {
             if (custom_field_is_linked($completion_date_field_id, $bug_project_id)) {
                 $field_definition = custom_field_get_definition($completion_date_field_id)['name'];
                 $field_value = custom_field_get_value($completion_date_field_id, $bug_id);
